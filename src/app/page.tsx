@@ -96,19 +96,19 @@ export default function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-2xl mx-auto">
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-2">95%+</div>
-                <div className="text-sm text-gray-600">دقة التفريغ</div>
+                <p className="text-sm text-gray-600">دقة التفريغ</p>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-2">5+</div>
-                <div className="text-sm text-gray-600">لهجات عربية</div>
+                <p className="text-sm text-gray-600">لهجات عربية</p>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-2">AI</div>
-                <div className="text-sm text-gray-600">معالجة ذكية</div>
+                <p className="text-sm text-gray-600">معالجة ذكية</p>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-2">🔒</div>
-                <div className="text-sm text-gray-600">استخدام داخلي</div>
+                <p className="text-sm text-gray-600">استخدام داخلي</p>
               </div>
             </div>
           </div>

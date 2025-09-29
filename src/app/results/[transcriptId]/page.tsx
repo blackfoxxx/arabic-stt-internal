@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +91,7 @@ export default function ResultsPage() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch real transcript data from the backend API
+      // Try to get results from backend API
       const response = await fetch(`/api/transcripts/${transcriptId}`);
       
       if (!response.ok) {
@@ -256,13 +257,20 @@ export default function ResultsPage() {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                نتائج التفريغ الصوتي
-              </h1>
-              <p className="text-gray-600">
-                {transcript.filename} • {formatTime(transcript.segments[transcript.segments.length - 1]?.end || 0)}
-              </p>
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/">
+                  ← العودة للرئيسية
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  نتائج التفريغ الصوتي
+                </h1>
+                <p className="text-gray-600">
+                  {transcript.filename} • {formatTime(transcript.segments[transcript.segments.length - 1]?.end || 0)}
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button onClick={() => exportTranscript('txt')} variant="outline" size="sm">
@@ -283,25 +291,25 @@ export default function ResultsPage() {
               <div className="text-2xl font-bold text-blue-600 mb-1">
                 {Math.round((transcript.confidence_score || 0) * 100)}%
               </div>
-              <div className="text-sm text-gray-600">دقة التفريغ</div>
+              <p className="text-sm text-gray-600">دقة التفريغ</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600 mb-1">
                 {transcript.segments.length}
               </div>
-              <div className="text-sm text-gray-600">مقطع نصي</div>
+              <p className="text-sm text-gray-600">مقطع نصي</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600 mb-1">
                 {transcript.speakers.length}
               </div>
-              <div className="text-sm text-gray-600">متحدث</div>
+              <p className="text-sm text-gray-600">متحدث</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600 mb-1">
                 {Math.round(transcript.processing_time)}s
               </div>
-              <div className="text-sm text-gray-600">وقت المعالجة</div>
+              <p className="text-sm text-gray-600">وقت المعالجة</p>
             </div>
           </div>
         </div>

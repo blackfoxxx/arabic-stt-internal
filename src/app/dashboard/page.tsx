@@ -157,59 +157,27 @@ export default function DashboardPage() {
             recentJobs: data.recentJobs.length 
           });
         } else {
-          console.warn('⚠️ Dashboard API returned error, using fallback data');
-          // Fallback to demo data if API fails
-          loadFallbackData();
+          console.warn('⚠️ Dashboard API returned error');
+          setStats({
+            totalJobs: 0,
+            totalMinutes: 0,
+            completedJobs: 0,
+            recentJobs: 0
+          });
+          setJobs([]);
         }
       } catch (error) {
         console.error('❌ Failed to load dashboard data:', error);
-        // Load demo data as fallback
-        loadFallbackData();
+        setStats({
+          totalJobs: 0,
+          totalMinutes: 0,
+          completedJobs: 0,
+          recentJobs: 0
+        });
+        setJobs([]);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    const loadFallbackData = () => {
-      const internalUser = {
-        id: 'internal-admin',
-        name: 'مدير النظام',
-        email: 'admin@company.com', 
-        organization: 'النظام الداخلي',
-        plan: 'نظام داخلي'
-      };
-
-      const internalJobs = [
-        {
-          id: '1',
-          filename: 'اجتماع_الإدارة_2024.mp3',
-          status: 'completed' as const,
-          progress: 100,
-          duration: 1845,
-          createdAt: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2', 
-          filename: 'تدريب_الموظفين.mp4',
-          status: 'processing' as const,
-          progress: 75,
-          duration: 3420,
-          createdAt: '2024-01-15T09:15:00Z'
-        }
-      ];
-
-      setStats({
-        totalFiles: 2,
-        totalMinutes: 85,
-        completedJobs: 1,
-        pendingJobs: 1,
-        monthlyUsage: 0,
-        monthlyLimit: 0
-      });
-
-      setUser(internalUser);
-      setRecentJobs(internalJobs);
-      console.log('✅ Fallback dashboard data loaded');
     };
 
     loadDashboardData();
@@ -303,6 +271,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center space-x-4 space-x-reverse">
+              <Link href="/">
+                <Button variant="outline" className="flex items-center gap-2">
+                  ← العودة للرئيسية
+                </Button>
+              </Link>
               <Button 
                 variant="outline" 
                 onClick={handleRefreshData}
@@ -327,18 +300,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* System Status */}
-        <Alert className="mb-6">
-          <AlertDescription>
-            <div className="flex items-center justify-between">
-              <span>حالة النظام: متصل ويعمل بكفاءة عالية</span>
-              <Badge className="bg-green-100 text-green-800">نشط</Badge>
-            </div>
-            <div className="mt-2 text-sm text-gray-600">
-              النظام جاهز لمعالجة الملفات الصوتية بلا حدود • آخر تحديث: اليوم
-            </div>
-          </AlertDescription>
-        </Alert>
+
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -418,17 +380,6 @@ export default function DashboardPage() {
                   }}>
                     اختيار ملفات
                   </Button>
-                </div>
-
-                {/* Demo Notice */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">نسخة تجريبية</h4>
-                  <p className="text-sm text-blue-700">
-                    لتفعيل رفع الملفات والمعالجة الكاملة، يجب تشغيل الخدمات الخلفية:
-                  </p>
-                  <code className="block bg-blue-100 px-3 py-2 rounded mt-2 text-xs text-blue-800">
-                    ./start-full-stack.sh
-                  </code>
                 </div>
               </CardContent>
             </Card>
@@ -511,158 +462,13 @@ export default function DashboardPage() {
 
           {/* Sidebar */}
           <div>
-            {/* Quick Actions */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>إجراءات سريعة</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                 <Button className="w-full" size="sm" asChild>
-                  <Link href="/upload">📤 رفع ملف جديد</Link>
-                </Button>
-                <Button 
-                  className="w-full" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleViewStats}
-                >
-                  📊 عرض الإحصائيات
-                </Button>
-                <Button 
-                  className="w-full" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleAccountSettings}
-                >
-                  ⚙️ إعدادات الحساب
-                </Button>
-                <Button 
-                  className="w-full" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleUserGuide}
-                >
-                  📖 دليل الاستخدام
-                </Button>
-              </CardContent>
-            </Card>
 
-            {/* Subscription Info */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>خطة الاشتراك</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600 mb-2">
-                    {user?.plan}
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {stats.monthlyLimit} دقيقة شهرياً
-                  </p>
-                  <Progress 
-                    value={(stats.monthlyUsage / stats.monthlyLimit) * 100} 
-                    className="mb-4" 
-                  />
-                  <p className="text-xs text-gray-500 mb-4">
-                    المتبقي: {stats.monthlyLimit - stats.monthlyUsage} دقيقة
-                  </p>
-                   <Button 
-                    size="sm" 
-                    className="w-full"
-                    onClick={handleUpgradePlan}
-                  >
-                    ترقية الخطة
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Support */}
-            <Card>
-              <CardHeader>
-                <CardTitle>الدعم والمساعدة</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                 <button 
-                  onClick={() => window.location.href = '/help'}
-                  className="block w-full p-3 rounded-lg border hover:bg-gray-50 transition-colors text-right"
-                >
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <span className="text-xl">❓</span>
-                    <div>
-                      <h4 className="font-medium text-sm">الأسئلة الشائعة</h4>
-                      <p className="text-xs text-gray-600">إجابات سريعة للأسئلة الشائعة</p>
-                    </div>
-                  </div>
-                </button>
-                
-                <button 
-                  onClick={() => window.location.href = '/docs'}
-                  className="block w-full p-3 rounded-lg border hover:bg-gray-50 transition-colors text-right"
-                >
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <span className="text-xl">📚</span>
-                    <div>
-                      <h4 className="font-medium text-sm">التوثيق</h4>
-                      <p className="text-xs text-gray-600">دليل استخدام المنصة</p>
-                    </div>
-                  </div>
-                </button>
-                
-                <button 
-                  onClick={() => window.location.href = '/contact'}
-                  className="block w-full p-3 rounded-lg border hover:bg-gray-50 transition-colors text-right"
-                >
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <span className="text-xl">💬</span>
-                    <div>
-                      <h4 className="font-medium text-sm">تواصل معنا</h4>
-                      <p className="text-xs text-gray-600">احصل على مساعدة مباشرة</p>
-                    </div>
-                  </div>
-                </button>
-              </CardContent>
-            </Card>
+
+
           </div>
         </div>
 
-        {/* Backend Status Notice */}
-        <div className="mt-8">
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader>
-              <CardTitle className="text-blue-900">حالة النظام</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-800">الواجهة الأمامية</span>
-                  <Badge className="bg-green-100 text-green-800">متصل</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-800">خدمة API</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">في الانتظار</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-800">معالج التفريغ</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">في الانتظار</Badge>
-                </div>
-                
-                <div className="mt-4 p-3 bg-blue-100 rounded">
-                  <p className="text-sm text-blue-800 mb-2">
-                    لتفعيل جميع الخدمات والبدء في التفريغ الفعلي:
-                  </p>
-                  <code className="block bg-white px-2 py-1 rounded text-xs text-blue-900">
-                    ./start-full-stack.sh
-                  </code>
-                  <p className="text-xs text-blue-600 mt-2">
-                    سيؤدي هذا إلى تشغيل قاعدة البيانات، وخدمة API، ومعالج التفريغ
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );

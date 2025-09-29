@@ -26,7 +26,8 @@ import {
   PieChart,
   Play,
   Pause,
-  Clock
+  Clock,
+  Home
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
 
@@ -134,9 +135,25 @@ const MultimodalResultsPage: React.FC = () => {
 
   const playSegment = (segment: TranscriptSegment) => {
     if (audioRef) {
-      audioRef.currentTime = segment.start
-      audioRef.play()
-      setSelectedSegment(segment.id)
+      try {
+        audioRef.currentTime = segment.start
+        const playPromise = audioRef.play()
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setSelectedSegment(segment.id)
+            })
+            .catch((error) => {
+              console.error('Audio playback failed:', error)
+              // Handle autoplay restrictions
+              if (error.name === 'NotAllowedError') {
+                alert('Please click on the audio player to enable playback')
+              }
+            })
+        }
+      } catch (error) {
+        console.error('Error setting audio time:', error)
+      }
     }
   }
 
@@ -617,6 +634,84 @@ ${multimodalResults.recommendations.map((rec: string, index: number) => `${index
     URL.revokeObjectURL(url)
   }
 
+  const downloadFullScript = () => {
+    if (!multimodalResults) return
+    
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+
+    const formatTime = (seconds: number) => {
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = Math.floor(seconds % 60)
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+    }
+
+    let scriptContent = `
+النص الكامل للتسجيل الصوتي
+=====================================
+
+تاريخ المعالجة: ${formatDate(multimodalResults.analysis_timestamp)}
+`
+
+    // Add transcription info if available
+    if (multimodalResults.transcription_info) {
+      scriptContent += `
+معلومات التفريغ:
+-----------------
+• النموذج المستخدم: ${multimodalResults.transcription_info.model_used}
+• اللغة: ${multimodalResults.transcription_info.language}
+• المدة الإجمالية: ${multimodalResults.transcription_info.total_duration}
+• عدد الكلمات: ${multimodalResults.transcription_info.total_words}
+• عدد الأحرف: ${multimodalResults.transcription_info.total_characters}
+${multimodalResults.transcription_info.total_segments ? `• عدد المقاطع: ${multimodalResults.transcription_info.total_segments}` : ''}
+
+`
+    }
+
+    // Add segmented transcript if available, otherwise use full transcription
+    if (multimodalResults.segments && multimodalResults.segments.length > 0) {
+      scriptContent += `النص المقسم حسب الوقت:
+=====================================
+
+`
+      multimodalResults.segments.forEach((segment, index) => {
+        scriptContent += `[${formatTime(segment.start)} - ${formatTime(segment.end)}] (الثقة: ${Math.round(segment.confidence * 100)}%)
+${segment.text}
+
+`
+      })
+    } else {
+      scriptContent += `النص الكامل:
+=====================================
+
+${multimodalResults.full_transcription || multimodalResults.text_content}
+
+`
+    }
+
+    scriptContent += `
+=====================================
+تم إنشاء هذا النص بواسطة نظام التفريغ الصوتي المتقدم
+    `.trim()
+    
+    const blob = new Blob([scriptContent], { type: 'text/plain; charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `النص_الكامل_${Date.now()}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const loadLatestResults = async () => {
     try {
       setLoading(true)
@@ -692,6 +787,17 @@ ${multimodalResults.recommendations.map((rec: string, index: number) => `${index
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="outline"
+          onClick={() => window.location.href = '/'}
+          className="flex items-center gap-2"
+        >
+          <Home className="h-4 w-4" />
+          Back to Home
+        </Button>
+      </div>
+      
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold">Multimodal Analysis Results</h1>
         <p className="text-muted-foreground">
@@ -870,10 +976,21 @@ ${multimodalResults.recommendations.map((rec: string, index: number) => `${index
                   <Separator />
 
                   <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Timeline Transcription - النص الزمني:
-                    </h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Timeline Transcription - النص الزمني:
+                      </h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadFullScript}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Full Script
+                      </Button>
+                    </div>
                     
                     {/* Audio Player with Enhanced Controls */}
                     {multimodalResults.audio_file && (
@@ -890,10 +1007,26 @@ ${multimodalResults.recommendations.map((rec: string, index: number) => `${index
                         <audio
                           ref={setAudioRef}
                           controls
+                          preload="metadata"
                           className="w-full"
                           onTimeUpdate={(e) => setCurrentAudioTime(e.currentTarget.currentTime)}
+                          onError={(e) => {
+                            console.error('Audio loading error:', {
+                              error: e,
+                              audioSrc: multimodalResults.audio_file,
+                              errorType: e.currentTarget?.error?.code,
+                              errorMessage: e.currentTarget?.error?.message,
+                              networkState: e.currentTarget?.networkState,
+                              readyState: e.currentTarget?.readyState
+                            })
+                            setError(`Failed to load audio file: ${multimodalResults.audio_file}`)
+                          }}
+                          onLoadStart={() => console.log('Audio loading started')}
+                          onCanPlay={() => console.log('Audio can play')}
                         >
                           <source src={multimodalResults.audio_file} type="audio/mpeg" />
+                          <source src={multimodalResults.audio_file} type="audio/mp3" />
+                          <source src={multimodalResults.audio_file} type="audio/wav" />
                           Your browser does not support the audio element.
                         </audio>
                         {/* Progress indicator */}

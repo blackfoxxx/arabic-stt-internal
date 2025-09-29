@@ -1,27 +1,4 @@
-/**
- * Demo AI Processing Simulation
- * Simulates real Arabic STT processing pipeline
- */
-
-export interface AIProcessingJob {
-  id: string;
-  filename: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  progress: number;
-  message: string;
-  current_step: string;
-  created_at: string;
-  started_at?: string;
-  completed_at?: string;
-  result?: AIProcessingResult;
-  parameters?: {
-    model?: string;
-    language?: string;
-    enhancement_level?: string;
-  };
-}
-
-export interface AIProcessingResult {
+interface JobResult {
   transcript_id: string;
   segments: Array<{
     id: string;
@@ -29,8 +6,8 @@ export interface AIProcessingResult {
     end: number;
     text: string;
     confidence: number;
-    speaker_id?: string;
-    speaker_name?: string;
+    speaker_id: string;
+    speaker_name: string;
   }>;
   speakers: Array<{
     id: string;
@@ -45,338 +22,642 @@ export interface AIProcessingResult {
   model_used: string;
   language: string;
   ai_features_used: string[];
+  arabic_analysis: {
+    overall_sentiment: string;
+    sentiment_distribution: {
+      positive: number;
+      neutral: number;
+      negative: number;
+    };
+    grammar_issues: {
+      t5_suggestions: number;
+      bert_suggestions: number;
+      camel_suggestions: number;
+    };
+    dialect_analysis: {
+      detected_dialect: string;
+      confidence: number;
+      regional_markers: string[];
+    };
+    linguistic_features: {
+      formality_level: string;
+      complexity_score: number;
+      vocabulary_richness: number;
+    };
+  };
   quality_metrics: {
     audio_quality: number;
     accuracy_estimate: string;
     dialect_detected: string;
     enhancement_applied: string;
   };
-  llm_enhancements?: {
-    grammar_correction?: string;
-    overall_summary?: string;
-    keywords?: string[];
-    translation?: string;
-  };
+}
+
+interface Job {
+  id: string;
+  filename: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  message: string;
+  current_step: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  createdAt?: string;
+  result?: JobResult;
 }
 
 class DemoAIProcessor {
-  public jobs: Map<string, AIProcessingJob> = new Map();
-  private processingIntervals: Map<string, NodeJS.Timeout> = new Map();
+  public jobs: Map<string, Job> = new Map();
 
-  startProcessing(job: AIProcessingJob): void {
-    console.log(`🤖 Starting AI processing simulation for job: ${job.id}`);
-    console.log(`📁 File: ${job.filename}`);
-    
-    this.jobs.set(job.id, { ...job, status: 'processing', started_at: new Date().toISOString() });
+  constructor() {
+    // Initialize with demo data that matches the statistics-storage transcript IDs
+    this.initializeDemoData();
+  }
 
-    // Simulate realistic AI processing stages
-    const stages = [
-      { 
-        progress: 10, 
-        message: 'تحليل الملف الصوتي وتحسين الجودة', 
-        step: 'audio_preprocessing',
-        duration: 2000 
+  private initializeDemoData(): void {
+    const demoJobs: Job[] = [
+      {
+        id: 'demo_1',
+        filename: 'اجتماع_الإدارة_2024.mp3',
+        status: 'completed',
+        progress: 100,
+        message: 'تم إكمال المعالجة بنجاح',
+        current_step: 'مكتمل',
+        created_at: '2024-01-15T10:30:00Z',
+        completed_at: '2024-01-15T10:32:30Z',
+        createdAt: '2024-01-15T10:30:00Z',
+        result: {
+          transcript_id: 'transcript_1705313550',
+          segments: [
+            {
+              id: 'segment_1',
+              start: 0.0,
+              end: 8.5,
+              text: 'بسم الله الرحمن الرحيم، أهلاً وسهلاً بكم في اجتماع الإدارة لهذا الشهر',
+              confidence: 0.95,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المدير العام'
+            },
+            {
+              id: 'segment_2',
+              start: 8.5,
+              end: 15.2,
+              text: 'سنبدأ اليوم بمراجعة الأداء المالي للربع الأول من هذا العام',
+              confidence: 0.92,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المدير العام'
+            },
+            {
+              id: 'segment_3',
+              start: 15.2,
+              end: 22.8,
+              text: 'شكراً لك، لدينا نتائج إيجابية في معظم القطاعات',
+              confidence: 0.89,
+              speaker_id: 'speaker_2',
+              speaker_name: 'مدير المالية'
+            }
+          ],
+          speakers: [
+            {
+              id: 'speaker_1',
+              label: 'SPEAKER_01',
+              display_name: 'المدير العام',
+              total_speaking_time: 16.7,
+              segments_count: 2,
+              confidence_score: 0.935
+            },
+            {
+              id: 'speaker_2',
+              label: 'SPEAKER_02',
+              display_name: 'مدير المالية',
+              total_speaking_time: 7.6,
+              segments_count: 1,
+              confidence_score: 0.89
+            }
+          ],
+          processing_time: 150,
+          confidence_score: 0.92,
+          model_used: 'faster-whisper-large-v3',
+          language: 'ar',
+          ai_features_used: ['faster-whisper', 'pyannote.audio', 'arabic-bert'],
+          arabic_analysis: {
+            overall_sentiment: 'إيجابي',
+            sentiment_distribution: {
+              positive: 8,
+              neutral: 12,
+              negative: 2
+            },
+            grammar_issues: {
+              t5_suggestions: 1,
+              bert_suggestions: 0,
+              camel_suggestions: 2
+            },
+            dialect_analysis: {
+              detected_dialect: 'عربية فصحى',
+              confidence: 0.94,
+              regional_markers: ['مصطلحات إدارية', 'لهجة خليجية خفيفة']
+            },
+            linguistic_features: {
+              formality_level: 'رسمي',
+              complexity_score: 0.78,
+              vocabulary_richness: 0.85
+            }
+          },
+          quality_metrics: {
+            audio_quality: 0.88,
+            accuracy_estimate: 'عالية',
+            dialect_detected: 'عربية فصحى',
+            enhancement_applied: 'تحسين الضوضاء'
+          }
+        }
       },
-      { 
-        progress: 30, 
-        message: 'تحويل الكلام إلى نص باستخدام faster-whisper', 
-        step: 'speech_recognition',
-        duration: 8000 
+      {
+        id: 'demo_2',
+        filename: 'تدريب_الموظفين.mp4',
+        status: 'completed',
+        progress: 100,
+        message: 'تم إكمال المعالجة بنجاح',
+        current_step: 'مكتمل',
+        created_at: '2024-01-15T09:15:00Z',
+        completed_at: '2024-01-15T09:17:51Z',
+        createdAt: '2024-01-15T09:15:00Z',
+        result: {
+          transcript_id: 'transcript_1705311451',
+          segments: [
+            {
+              id: 'segment_1',
+              start: 0.0,
+              end: 12.3,
+              text: 'مرحباً بكم في دورة تدريب الموظفين الجدد، سنتعلم اليوم أساسيات العمل في الشركة',
+              confidence: 0.93,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المدرب'
+            },
+            {
+              id: 'segment_2',
+              start: 12.3,
+              end: 25.7,
+              text: 'أولاً، دعونا نتعرف على قيم الشركة ورؤيتها المستقبلية',
+              confidence: 0.91,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المدرب'
+            }
+          ],
+          speakers: [
+            {
+              id: 'speaker_1',
+              label: 'SPEAKER_01',
+              display_name: 'المدرب',
+              total_speaking_time: 25.7,
+              segments_count: 2,
+              confidence_score: 0.92
+            }
+          ],
+          processing_time: 171,
+          confidence_score: 0.92,
+          model_used: 'faster-whisper-large-v3',
+          language: 'ar',
+          ai_features_used: ['faster-whisper', 'pyannote.audio'],
+          arabic_analysis: {
+            overall_sentiment: 'إيجابي',
+            sentiment_distribution: {
+              positive: 15,
+              neutral: 8,
+              negative: 1
+            },
+            grammar_issues: {
+              t5_suggestions: 0,
+              bert_suggestions: 1,
+              camel_suggestions: 1
+            },
+            dialect_analysis: {
+              detected_dialect: 'عربية فصحى',
+              confidence: 0.96,
+              regional_markers: ['مصطلحات تعليمية']
+            },
+            linguistic_features: {
+              formality_level: 'رسمي',
+              complexity_score: 0.72,
+              vocabulary_richness: 0.80
+            }
+          },
+          quality_metrics: {
+            audio_quality: 0.90,
+            accuracy_estimate: 'عالية',
+            dialect_detected: 'عربية فصحى',
+            enhancement_applied: 'تحسين الصوت'
+          }
+        }
       },
-      { 
-        progress: 60, 
-        message: 'تحديد المتحدثين باستخدام pyannote.audio', 
-        step: 'speaker_diarization',
-        duration: 5000 
+      {
+        id: 'demo_3',
+        filename: 'مكالمة_عمل.wav',
+        status: 'completed',
+        progress: 100,
+        message: 'تم إكمال المعالجة بنجاح',
+        current_step: 'مكتمل',
+        created_at: '2024-01-15T08:45:00Z',
+        completed_at: '2024-01-15T08:46:01Z',
+        createdAt: '2024-01-15T08:45:00Z',
+        result: {
+          transcript_id: 'transcript_1705309561',
+          segments: [
+            {
+              id: 'segment_1',
+              start: 0.0,
+              end: 6.8,
+              text: 'السلام عليكم، كيف حالك؟ أتصل بخصوص المشروع الجديد',
+              confidence: 0.88,
+              speaker_id: 'speaker_1',
+              speaker_name: 'العميل'
+            },
+            {
+              id: 'segment_2',
+              start: 6.8,
+              end: 13.5,
+              text: 'وعليكم السلام، أهلاً وسهلاً، نعم المشروع يسير بشكل جيد',
+              confidence: 0.90,
+              speaker_id: 'speaker_2',
+              speaker_name: 'مدير المشروع'
+            }
+          ],
+          speakers: [
+            {
+              id: 'speaker_1',
+              label: 'SPEAKER_01',
+              display_name: 'العميل',
+              total_speaking_time: 6.8,
+              segments_count: 1,
+              confidence_score: 0.88
+            },
+            {
+              id: 'speaker_2',
+              label: 'SPEAKER_02',
+              display_name: 'مدير المشروع',
+              total_speaking_time: 6.7,
+              segments_count: 1,
+              confidence_score: 0.90
+            }
+          ],
+          processing_time: 61,
+          confidence_score: 0.89,
+          model_used: 'faster-whisper-medium',
+          language: 'ar',
+          ai_features_used: ['faster-whisper', 'pyannote.audio'],
+          arabic_analysis: {
+            overall_sentiment: 'محايد',
+            sentiment_distribution: {
+              positive: 5,
+              neutral: 10,
+              negative: 0
+            },
+            grammar_issues: {
+              t5_suggestions: 0,
+              bert_suggestions: 0,
+              camel_suggestions: 1
+            },
+            dialect_analysis: {
+              detected_dialect: 'عربية فصحى مع لهجة محلية',
+              confidence: 0.85,
+              regional_markers: ['تحيات تقليدية']
+            },
+            linguistic_features: {
+              formality_level: 'غير رسمي',
+              complexity_score: 0.65,
+              vocabulary_richness: 0.70
+            }
+          },
+          quality_metrics: {
+            audio_quality: 0.75,
+            accuracy_estimate: 'متوسطة',
+            dialect_detected: 'عربية فصحى مع لهجة',
+            enhancement_applied: 'تقليل الضوضاء'
+          }
+        }
       },
-      { 
-        progress: 80, 
-        message: 'معالجة النص العربي وتحسين الجودة', 
-        step: 'text_postprocessing',
-        duration: 3000 
+      {
+        id: 'demo_4',
+        filename: 'محاضرة_تقنية.mp3',
+        status: 'completed',
+        progress: 100,
+        message: 'تم إكمال المعالجة بنجاح',
+        current_step: 'مكتمل',
+        created_at: '2024-01-14T16:20:00Z',
+        completed_at: '2024-01-14T16:22:15Z',
+        createdAt: '2024-01-14T16:20:00Z',
+        result: {
+          transcript_id: 'transcript_1705250535',
+          segments: [
+            {
+              id: 'segment_1',
+              start: 0.0,
+              end: 10.2,
+              text: 'اليوم سنتحدث عن الذكاء الاصطناعي وتطبيقاته في المجال التقني',
+              confidence: 0.94,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المحاضر'
+            },
+            {
+              id: 'segment_2',
+              start: 10.2,
+              end: 18.9,
+              text: 'الذكاء الاصطناعي يشمل التعلم الآلي ومعالجة اللغات الطبيعية',
+              confidence: 0.96,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المحاضر'
+            }
+          ],
+          speakers: [
+            {
+              id: 'speaker_1',
+              label: 'SPEAKER_01',
+              display_name: 'المحاضر',
+              total_speaking_time: 18.9,
+              segments_count: 2,
+              confidence_score: 0.95
+            }
+          ],
+          processing_time: 135,
+          confidence_score: 0.95,
+          model_used: 'faster-whisper-large-v3',
+          language: 'ar',
+          ai_features_used: ['faster-whisper', 'arabic-bert', 'technical-vocabulary'],
+          arabic_analysis: {
+            overall_sentiment: 'محايد',
+            sentiment_distribution: {
+              positive: 6,
+              neutral: 18,
+              negative: 0
+            },
+            grammar_issues: {
+              t5_suggestions: 0,
+              bert_suggestions: 0,
+              camel_suggestions: 0
+            },
+            dialect_analysis: {
+              detected_dialect: 'عربية فصحى أكاديمية',
+              confidence: 0.98,
+              regional_markers: ['مصطلحات تقنية', 'أسلوب أكاديمي']
+            },
+            linguistic_features: {
+              formality_level: 'رسمي جداً',
+              complexity_score: 0.88,
+              vocabulary_richness: 0.92
+            }
+          },
+          quality_metrics: {
+            audio_quality: 0.92,
+            accuracy_estimate: 'عالية جداً',
+            dialect_detected: 'عربية فصحى أكاديمية',
+            enhancement_applied: 'تحسين متقدم'
+          }
+        }
       },
-      { 
-        progress: 95, 
-        message: 'حفظ النتائج وإنشاء الملفات', 
-        step: 'database_storage',
-        duration: 2000 
-      },
-      { 
-        progress: 100, 
-        message: 'اكتملت المعالجة بنجاح ✨', 
-        step: 'completed',
-        duration: 1000 
+      {
+        id: 'demo_5',
+        filename: 'مقابلة_شخصية.mp4',
+        status: 'completed',
+        progress: 100,
+        message: 'تم إكمال المعالجة بنجاح',
+        current_step: 'مكتمل',
+        created_at: '2024-01-15T11:00:00Z',
+        completed_at: '2024-01-15T11:01:30Z',
+        createdAt: '2024-01-15T11:00:00Z',
+        result: {
+          transcript_id: 'transcript_1705315290',
+          segments: [
+            {
+              id: 'segment_1',
+              start: 0.0,
+              end: 7.5,
+              text: 'أهلاً وسهلاً، اسمي أحمد وأنا مهتم بالوظيفة المعلن عنها',
+              confidence: 0.91,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المتقدم للوظيفة'
+            },
+            {
+              id: 'segment_2',
+              start: 7.5,
+              end: 14.8,
+              text: 'مرحباً أحمد، حدثنا عن خبرتك في هذا المجال',
+              confidence: 0.93,
+              speaker_id: 'speaker_2',
+              speaker_name: 'مسؤول التوظيف'
+            },
+            {
+              id: 'segment_3',
+              start: 14.8,
+              end: 25.3,
+              text: 'لدي خبرة خمس سنوات في تطوير البرمجيات وإدارة المشاريع التقنية',
+              confidence: 0.89,
+              speaker_id: 'speaker_1',
+              speaker_name: 'المتقدم للوظيفة'
+            }
+          ],
+          speakers: [
+            {
+              id: 'speaker_1',
+              label: 'SPEAKER_01',
+              display_name: 'المتقدم للوظيفة',
+              total_speaking_time: 17.8,
+              segments_count: 2,
+              confidence_score: 0.90
+            },
+            {
+              id: 'speaker_2',
+              label: 'SPEAKER_02',
+              display_name: 'مسؤول التوظيف',
+              total_speaking_time: 7.3,
+              segments_count: 1,
+              confidence_score: 0.93
+            }
+          ],
+          processing_time: 90,
+          confidence_score: 0.91,
+          model_used: 'faster-whisper-large-v3',
+          language: 'ar',
+          ai_features_used: ['faster-whisper', 'pyannote.audio', 'arabic-bert'],
+          arabic_analysis: {
+            overall_sentiment: 'إيجابي',
+            sentiment_distribution: {
+              positive: 12,
+              neutral: 8,
+              negative: 0
+            },
+            grammar_issues: {
+              t5_suggestions: 1,
+              bert_suggestions: 0,
+              camel_suggestions: 1
+            },
+            dialect_analysis: {
+              detected_dialect: 'عربية فصحى مع لهجة محلية',
+              confidence: 0.87,
+              regional_markers: ['أسلوب مهني', 'تعبيرات رسمية']
+            },
+            linguistic_features: {
+              formality_level: 'رسمي',
+              complexity_score: 0.75,
+              vocabulary_richness: 0.82
+            }
+          },
+          quality_metrics: {
+            audio_quality: 0.85,
+            accuracy_estimate: 'عالية',
+            dialect_detected: 'عربية فصحى مع لهجة',
+            enhancement_applied: 'تحسين الضوضاء'
+          }
+        }
       }
     ];
 
-    let currentStageIndex = 0;
+    // Add all demo jobs to the processor
+    demoJobs.forEach(job => {
+      this.jobs.set(job.id, job);
+    });
 
-    const processNextStage = () => {
-      if (currentStageIndex >= stages.length) {
-        // Processing complete - generate results
-        this.completeProcessing(job.id);
-        return;
-      }
-
-      const stage = stages[currentStageIndex];
-      const updatedJob = {
-        ...this.jobs.get(job.id)!,
-        progress: stage.progress,
-        message: stage.message,
-        current_step: stage.step
-      };
-
-      this.jobs.set(job.id, updatedJob);
-      
-      console.log(`🔄 AI Stage ${currentStageIndex + 1}/${stages.length}: ${stage.message} (${stage.progress}%)`);
-
-      currentStageIndex++;
-      
-      // Schedule next stage
-      const timeout = setTimeout(processNextStage, stage.duration);
-      this.processingIntervals.set(job.id, timeout);
-    };
-
-    // Start processing
-    processNextStage();
+    console.log('📊 Demo AI Processor initialized with', demoJobs.length, 'demo jobs');
   }
 
-  private completeProcessing(jobId: string): void {
-    const job = this.jobs.get(jobId);
-    if (!job) return;
+  getAllJobs(): Job[] {
+    return Array.from(this.jobs.values());
+  }
 
-    console.log(`✅ AI Processing completed for job: ${jobId}`);
+  getJob(jobId: string): Job | undefined {
+    return this.jobs.get(jobId);
+  }
 
-    // Generate realistic AI processing results
-    const result: AIProcessingResult = {
-      transcript_id: `transcript_${Date.now()}`,
+  addJob(job: Job): void {
+    this.jobs.set(job.id, job);
+  }
+
+  updateJob(jobId: string, updates: Partial<Job>): void {
+    const existingJob = this.jobs.get(jobId);
+    if (existingJob) {
+      this.jobs.set(jobId, { ...existingJob, ...updates });
+    }
+  }
+
+  removeJob(jobId: string): void {
+    this.jobs.delete(jobId);
+  }
+
+  clearAllJobs(): void {
+    this.jobs.clear();
+  }
+
+  // Method to create demo data for a new transcript ID
+  createDemoTranscriptData(transcriptId: string, filename: string = 'ملف_جديد.mp4'): JobResult {
+    const demoResult: JobResult = {
+      transcript_id: transcriptId,
       segments: [
         {
-          id: 'seg_1',
+          id: 'segment_1',
           start: 0.0,
-          end: 8.5,
-          text: `معالجة ملف "${job.filename}" بنجاح باستخدام الذكاء الاصطناعي`,
-          confidence: 0.94,
-          speaker_id: 'SPEAKER_00',
+          end: 5.2,
+          text: 'مرحباً، هذا ملف تجريبي جديد',
+          confidence: 0.95,
+          speaker_id: 'speaker_1',
           speaker_name: 'المتحدث الأول'
         },
         {
-          id: 'seg_2',
-          start: 9.0,
-          end: 15.5,
-          text: 'تم استخدام تقنيات متقدمة للتعرف على الكلام وفصل المتحدثين',
-          confidence: 0.91,
-          speaker_id: 'SPEAKER_01',
+          id: 'segment_2',
+          start: 5.2,
+          end: 12.8,
+          text: 'تم إنشاء هذا النص تلقائياً لأغراض العرض التوضيحي',
+          confidence: 0.92,
+          speaker_id: 'speaker_1',
+          speaker_name: 'المتحدث الأول'
+        },
+        {
+          id: 'segment_3',
+          start: 12.8,
+          end: 18.5,
+          text: 'شكراً لاستخدام نظام التفريغ الصوتي العربي',
+          confidence: 0.89,
+          speaker_id: 'speaker_2',
           speaker_name: 'المتحدث الثاني'
-        },
-        {
-          id: 'seg_3',
-          start: 16.0,
-          end: 22.8,
-          text: 'النتائج جاهزة للمراجعة والتحرير والتصدير بصيغ متعددة',
-          confidence: 0.88,
-          speaker_id: 'SPEAKER_00',
-          speaker_name: 'المتحدث الأول'
         }
       ],
       speakers: [
         {
-          id: 'SPEAKER_00',
-          label: 'SPEAKER_00',
+          id: 'speaker_1',
+          label: 'SPEAKER_01',
           display_name: 'المتحدث الأول',
-          total_speaking_time: 15.3,
+          total_speaking_time: 12.0,
           segments_count: 2,
-          confidence_score: 0.91
+          confidence_score: 0.935
         },
         {
-          id: 'SPEAKER_01',
-          label: 'SPEAKER_01',
-          display_name: 'المتحدث الثاني', 
-          total_speaking_time: 6.5,
+          id: 'speaker_2',
+          label: 'SPEAKER_02',
+          display_name: 'المتحدث الثاني',
+          total_speaking_time: 5.7,
           segments_count: 1,
-          confidence_score: 0.91
+          confidence_score: 0.89
         }
       ],
-      processing_time: 18.5,
-      confidence_score: 0.91,
-      model_used: job.parameters?.model || 'large-v3',
-      language: job.parameters?.language || 'ar',
-      ai_features_used: [
-        'faster-whisper ASR',
-        'pyannote.audio diarization',
-        'Audio enhancement',
-        'Arabic text normalization',
-        'Quality assessment',
-        'LLM text enhancement'
-      ],
-      quality_metrics: {
-        audio_quality: 0.87,
-        accuracy_estimate: '91%',
-        dialect_detected: job.parameters?.language === 'ar-IQ' ? 'العراقية' : 'العربية الفصحى',
-        enhancement_applied: job.parameters?.enhancement_level || 'medium'
+      processing_time: 95,
+      confidence_score: 0.92,
+      model_used: 'faster-whisper-large-v3',
+      language: 'ar',
+      ai_features_used: ['faster-whisper', 'pyannote.audio', 'arabic-bert'],
+      arabic_analysis: {
+        overall_sentiment: 'إيجابي',
+        sentiment_distribution: {
+          positive: 6,
+          neutral: 8,
+          negative: 1
+        },
+        grammar_issues: {
+          t5_suggestions: 2,
+          bert_suggestions: 1,
+          camel_suggestions: 1
+        },
+        dialect_analysis: {
+          detected_dialect: 'عربية فصحى',
+          confidence: 0.88,
+          regional_markers: ['فصحى حديثة']
+        },
+        linguistic_features: {
+          formality_level: 'رسمي',
+          complexity_score: 0.65,
+          vocabulary_richness: 0.75
+        }
       },
-      llm_enhancements: {
-        grammar_correction: `تم تصحيح النص وتحسين القواعد النحوية للملف "${job.filename}". تم إصلاح الأخطاء الإملائية وتحسين بنية الجمل لتصبح أكثر وضوحاً ودقة.`,
-        overall_summary: `ملخص المحتوى: يتناول هذا التسجيل الصوتي عملية معالجة الملفات الصوتية باستخدام تقنيات الذكاء الاصطناعي المتقدمة، مع التركيز على التعرف على الكلام وفصل المتحدثين وإنتاج نتائج عالية الجودة جاهزة للاستخدام.`,
-        keywords: ['الذكاء الاصطناعي', 'معالجة صوتية', 'تفريغ نصوص', 'فصل المتحدثين', 'تقنيات متقدمة', 'جودة عالية'],
-        translation: `File "${job.filename}" has been successfully processed using artificial intelligence. Advanced technologies were used for speech recognition and speaker separation. The results are ready for review, editing, and export in multiple formats.`
+      quality_metrics: {
+        audio_quality: 0.85,
+        accuracy_estimate: 'عالية',
+        dialect_detected: 'عربية فصحى',
+        enhancement_applied: 'تحسين الضوضاء'
       }
     };
 
-    // Update job with results
-    const completedJob: AIProcessingJob = {
-      ...job,
+    // Create a new job with this demo data
+    const newJob: Job = {
+      id: `job_${Date.now()}`,
+      filename: filename,
       status: 'completed',
       progress: 100,
-      message: 'اكتملت المعالجة بنجاح ✨',
-      current_step: 'completed',
+      message: 'تم إكمال المعالجة بنجاح',
+      current_step: 'مكتمل',
+      created_at: new Date().toISOString(),
       completed_at: new Date().toISOString(),
-      result
+      createdAt: new Date().toISOString(),
+      result: demoResult
     };
 
-    this.jobs.set(jobId, completedJob);
-
-    // Clear processing interval
-    const interval = this.processingIntervals.get(jobId);
-    if (interval) {
-      clearTimeout(interval);
-      this.processingIntervals.delete(jobId);
-    }
-
-    console.log(`🎉 AI Results generated:`, {
-      transcriptId: result.transcript_id,
-      segments: result.segments.length,
-      speakers: result.speakers.length,
-      confidence: `${Math.round(result.confidence_score * 100)}%`,
-      processingTime: `${result.processing_time}s`
-    });
+    this.addJob(newJob);
+    console.log(`📝 Created demo transcript data for ID: ${transcriptId}`);
+    return demoResult;
   }
 
-  getJob(jobId: string): AIProcessingJob | null {
-    return this.jobs.get(jobId) || null;
-  }
-
-  getAllJobs(): AIProcessingJob[] {
-    return Array.from(this.jobs.values());
-  }
-
-  cancelJob(jobId: string): boolean {
-    const job = this.jobs.get(jobId);
-    if (!job) return false;
-
-    // Clear processing interval
-    const interval = this.processingIntervals.get(jobId);
-    if (interval) {
-      clearTimeout(interval);
-      this.processingIntervals.delete(jobId);
-    }
-
-    // Update job status
-    const cancelledJob: AIProcessingJob = {
-      ...job,
-      status: 'failed',
-      message: 'تم إلغاء المعالجة',
-      current_step: 'cancelled'
-    };
-
-    this.jobs.set(jobId, cancelledJob);
-    console.log(`❌ AI Processing cancelled for job: ${jobId}`);
-    
-    return true;
-  }
-
-  // Generate realistic audio file analysis
-  analyzeAudioFile(file: File): {
-    duration_estimate: number;
-    quality_score: number;
-    processing_estimate: string;
-    recommended_model: string;
-    file_info: {
-      name: string;
-      size: number;
-      type: string;
-      lastModified: number;
-    };
-  } {
-    // Estimate duration based on file size and type
-    let durationEstimate = 60; // Default 1 minute
-    
-    if (file.type.startsWith('audio/')) {
-      // Audio files: ~1MB per minute for MP3
-      durationEstimate = Math.max(30, (file.size / (1024 * 1024)) * 60);
-    } else if (file.type.startsWith('video/')) {
-      // Video files: ~10MB per minute
-      durationEstimate = Math.max(30, (file.size / (10 * 1024 * 1024)) * 60);
-    }
-
-    // Estimate quality based on file size and type
-    let qualityScore = 0.7; // Default quality
-    
-    if (file.type === 'audio/wav' || file.type === 'audio/flac') {
-      qualityScore = 0.9; // High quality uncompressed
-    } else if (file.type === 'audio/mp3' && file.size > 1024 * 1024) {
-      qualityScore = 0.8; // Good quality MP3
-    }
-
-    // Processing time estimate
-    const processingMinutes = Math.ceil(durationEstimate / 60 * 0.5); // ~0.5x realtime
-    const processingEstimate = `${processingMinutes} دقيقة تقريباً`;
-
-    // Recommend model based on file characteristics
-    let recommendedModel = 'medium';
-    if (durationEstimate > 1800) { // > 30 minutes
-      recommendedModel = 'small'; // Faster for long files
-    } else if (qualityScore > 0.8) {
-      recommendedModel = 'large-v3'; // Best quality for good audio
-    }
-
-    return {
-      duration_estimate: durationEstimate,
-      quality_score: qualityScore,
-      processing_estimate: processingEstimate,
-      recommended_model: recommendedModel,
-      file_info: {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified
-      }
-    };
+  getJobByTranscriptId(transcriptId: string): Job | undefined {
+    return Array.from(this.jobs.values()).find(job => 
+      job.result?.transcript_id === transcriptId
+    );
   }
 }
 
-// Global demo processor instance
+// Export a singleton instance
 export const demoAIProcessor = new DemoAIProcessor();
-
-// Helper function to format file size
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Helper function to estimate processing time
-export function estimateProcessingTime(fileSize: number, model: string): string {
-  const sizeMB = fileSize / (1024 * 1024);
-  const baseDuration = sizeMB * 0.5; // Assume ~0.5 minutes per MB
-  
-  let multiplier = 1;
-  switch (model) {
-    case 'large-v3':
-      multiplier = 2.0; // Slower but more accurate
-      break;
-    case 'medium':
-      multiplier = 1.5;
-      break;
-    case 'small':
-      multiplier = 1.0; // Fastest
-      break;
-  }
-  
-  const totalMinutes = Math.max(1, Math.ceil(baseDuration * multiplier));
-  return `${totalMinutes} دقيقة تقريباً`;
-}

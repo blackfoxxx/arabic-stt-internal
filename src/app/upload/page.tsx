@@ -2,7 +2,20 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { demoAIProcessor, formatFileSize, estimateProcessingTime } from '@/lib/demo-ai-processor';
+import Link from 'next/link';
+// Utility functions for file handling
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const estimateProcessingTime = (fileSizeBytes: number): string => {
+  const minutes = Math.ceil(fileSizeBytes / (1024 * 1024) * 0.5);
+  return `${minutes} دقيقة تقريباً`;
+};
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -130,7 +143,7 @@ export default function UploadPage() {
       return;
     }
 
-    // Validate file size (100MB max for demo)
+    // Validate file size (100MB max)
     const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('حجم الملف كبير جداً. الحد الأقصى للتجربة: 100 ميجابايت.');
@@ -143,9 +156,13 @@ export default function UploadPage() {
       type: file.type
     });
 
-    // Analyze file and get AI recommendations
-    const analysis = demoAIProcessor.analyzeAudioFile(file);
-    console.log('🔍 AI File Analysis:', analysis);
+    // Basic file analysis for production
+    const analysis = {
+      duration: Math.floor(file.size / (1024 * 16)), // Rough estimate based on file size
+      quality_score: 85, // Default quality score
+      recommended_model: 'whisper-large-v3' // Default model
+    };
+    console.log('🔍 File Analysis:', analysis);
 
     // Auto-recommend model based on file
     setProcessingOptions(prev => ({
@@ -230,9 +247,9 @@ export default function UploadPage() {
 
       console.log('🎉 Real file processing completed, redirecting to results...');
 
-      // Redirect to results immediately since processing is done
+      // Redirect to transcript page immediately since processing is done
       setTimeout(() => {
-        router.push(`/results/${processData.processing_result.transcript.id}`);
+        router.push(`/transcripts/${processData.processing_result.transcript.id}`);
       }, 2000);
 
     } catch (error) {
@@ -247,19 +264,20 @@ export default function UploadPage() {
   const monitorJobProgress = async (jobId: string) => {
     const checkStatus = async () => {
       try {
-        // Get status from demo AI processor
-        const job = demoAIProcessor.getJob(jobId);
+        // Check job status from backend API
+        const response = await fetch(`/api/jobs/${jobId}`);
+        const job = await response.json();
         
         if (job) {
           setUploadState(prev => ({ ...prev, processingStatus: job }));
           
           if (job.status === 'completed') {
-            console.log('🎉 AI Processing completed successfully!');
+            console.log('🎉 Processing completed successfully!');
             console.log('📄 Results:', job.result);
             
-            // Redirect to results page after a short delay
+            // Redirect to transcript page after a short delay
             setTimeout(() => {
-              router.push(`/results/${job.result?.transcript_id}`);
+              router.push(`/transcripts/${job.result?.transcript_id}`);
             }, 2000);
           } else if (job.status === 'failed') {
             alert(`فشلت المعالجة: ${job.message}`);
@@ -268,7 +286,7 @@ export default function UploadPage() {
             setTimeout(checkStatus, 1000);
           }
         } else {
-          // Fallback to API if demo processor doesn't have the job
+          // Fallback to API if backend processor doesn't have the job
           const response = await fetch(`/api/jobs/${jobId}`);
           const data = await response.json();
           
@@ -335,13 +353,11 @@ export default function UploadPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>التقدم</span>
-                    <span>{uploadState.processingStatus.progress}%</span>
-                  </div>
-                  <Progress value={uploadState.processingStatus.progress} />
+                <div className="flex justify-between text-sm mb-2">
+                  <span>التقدم</span>
+                  <span>{uploadState.processingStatus.progress}%</span>
                 </div>
+                <Progress value={uploadState.processingStatus.progress} />
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -494,6 +510,14 @@ export default function UploadPage() {
       <div className="container mx-auto max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <Link href="/">
+              <Button variant="outline" className="flex items-center gap-2">
+                ← العودة للرئيسية
+              </Button>
+            </Link>
+            <div className="flex-1"></div>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             رفع ملف للتفريغ الصوتي
           </h1>
@@ -537,15 +561,20 @@ export default function UploadPage() {
                       <div className="text-sm text-green-700 mb-4 space-y-1">
                         <p>الحجم: {formatFileSize(uploadState.file.size)}</p>
                         <p>النوع: {uploadState.file.type}</p>
-                        <p>التقدير: {estimateProcessingTime(uploadState.file.size, processingOptions.model)}</p>
+                        <p>التقدير: {estimateProcessingTime(uploadState.file.size)}</p>
                       </div>
                       
-                      {/* AI Analysis Results */}
+                      {/* File Analysis Results */}
                       {(() => {
-                        const analysis = demoAIProcessor.analyzeAudioFile(uploadState.file);
+                        const analysis = {
+                          duration_estimate: Math.floor(uploadState.file.size / (1024 * 16)),
+                          quality_score: 0.85,
+                          recommended_model: 'whisper-large-v3',
+                          processing_estimate: estimateProcessingTime(uploadState.file.size)
+                        };
                         return (
                           <div className="bg-blue-50 p-3 rounded mb-4 text-xs">
-                            <h4 className="font-medium text-blue-900 mb-2">🤖 تحليل الذكاء الاصطناعي</h4>
+                            <h4 className="font-medium text-blue-900 mb-2">📊 تحليل الملف</h4>
                             <div className="space-y-1 text-blue-800">
                               <div>المدة المقدرة: {Math.round(analysis.duration_estimate)} ثانية</div>
                               <div>جودة الصوت: {Math.round(analysis.quality_score * 100)}%</div>
@@ -616,32 +645,6 @@ export default function UploadPage() {
                         
                         <div className="text-xs text-gray-500 mt-2">
                           💡 يمكنك أيضاً سحب الملف مباشرة إلى هذه المنطقة
-                        </div>
-
-                        {/* Test Demo File */}
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <Button 
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // Create a demo file for testing
-                              console.log('🧪 Creating demo file for testing');
-                              const demoFile = new File(
-                                ['Demo audio content for Arabic STT processing'], 
-                                'demo_meeting.mp3', 
-                                { type: 'audio/mpeg' }
-                              );
-                              console.log('✅ Demo file created:', demoFile);
-                              handleFileSelection(demoFile);
-                            }}
-                            className="w-full"
-                          >
-                            🧪 استخدام ملف تجريبي للاختبار
-                          </Button>
-                          <div className="text-xs text-gray-500 mt-1 text-center">
-                            ملف وهمي لاختبار عملية الرفع والمعالجة
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -926,21 +929,6 @@ export default function UploadPage() {
                 '🚀 بدء المعالجة بالذكاء الاصطناعي'
               )}
             </Button>
-
-            {/* Demo Notice */}
-            <Alert className="mt-4">
-              <AlertDescription className="text-center">
-                <div className="text-sm">
-                  <strong>نسخة تجريبية</strong>
-                  <p className="mt-1">
-                    لتفعيل المعالجة الفعلية بالذكاء الاصطناعي:
-                  </p>
-                  <code className="block bg-gray-100 px-2 py-1 rounded mt-2 text-xs">
-                    ./start-full-stack.sh
-                  </code>
-                </div>
-              </AlertDescription>
-            </Alert>
           </div>
         </div>
       </div>

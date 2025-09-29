@@ -312,10 +312,13 @@ class StatisticsStorage {
       {
         id: 'demo_5',
         filename: 'مقابلة_شخصية.mp4',
-        status: 'processing',
-        progress: 75,
+        status: 'completed',
+        progress: 100,
         duration: 1800, // 30 minutes
-        createdAt: '2024-01-15T11:00:00Z'
+        processingTime: 90, // 1.5 minutes processing
+        createdAt: '2024-01-15T11:00:00Z',
+        completedAt: '2024-01-15T11:01:30Z',
+        transcriptId: 'transcript_1705315290'
       }
     ];
 

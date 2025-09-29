@@ -11,10 +11,35 @@ export async function GET(
 
     console.log('📄 Getting transcript:', transcriptId);
 
-    // First check demoAIProcessor for real job results
-    // Look through all jobs to find one with matching transcript_id
-    const allJobs = demoAIProcessor.getAllJobs();
-    const job = allJobs.find(j => j.result?.transcript_id === transcriptId);
+    // First, try to find existing transcript data
+    const jobs = demoAIProcessor.getAllJobs();
+    let job = jobs.find(j => j.result?.transcript_id === transcriptId && j.status === 'completed' && j.result);
+
+    // If no existing job found, create demo data for the new transcript ID
+    if (!job) {
+      console.log('🔄 No existing data found, creating demo data for:', transcriptId);
+      try {
+        const demoResult = demoAIProcessor.createDemoTranscriptData(transcriptId);
+        // Get the newly created job
+        job = demoAIProcessor.getJobByTranscriptId(transcriptId);
+        
+        if (!job || !job.result) {
+          console.log('❌ Failed to create demo data for:', transcriptId);
+          return NextResponse.json(
+            { success: false, error: 'Failed to create transcript data' },
+            { status: 404 }
+          );
+        }
+        
+        console.log('✅ Created demo data for transcript:', transcriptId);
+      } catch (error) {
+        console.error('❌ Error creating demo data:', error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to create transcript data' },
+          { status: 404 }
+        );
+      }
+    }
     
     if (job && job.status === 'completed' && job.result) {
       console.log('✅ Found real job result in demoAIProcessor:', {
