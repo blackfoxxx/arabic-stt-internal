@@ -14,18 +14,10 @@
 🔑 Password: demo123
 ```
 
-### **How to Access & Use:**
-1. **🌐 Visit**: https://sb-1sy34wf0itsg.vercel.run
-2. **📱 See Demo Login**: Credentials are displayed prominently on homepage
-3. **🔐 Click Login**: Use the demo credentials
-4. **📊 Access Dashboard**: Full platform functionality
-5. **📤 Upload Files**: Working file upload with AI processing
 
----
 
-## 🤖 **AI PROCESSING NOW WORKING**
 
-### **✅ Complete Upload & AI Pipeline**
+
 
 #### **1. File Upload System** ✅ WORKING
 - **📁 Drag & Drop**: Working file selection
@@ -197,17 +189,10 @@ curl -X GET /api/jobs/{job_id}
 - **💾 Export System**: Working downloads in multiple formats
 - **🔐 Clear Login**: Demo credentials prominently displayed
 
----
 
-## 🎯 **IMMEDIATE USAGE**
 
-### **✅ Ready to Use RIGHT NOW:**
 
-**🌐 Platform**: https://sb-1sy34wf0itsg.vercel.run
 
-**🔐 Login**: 
-- Email: `demo@example.com`
-- Password: `demo123`
 
 **📋 Complete Workflow:**
 1. Login → Dashboard → Upload → Configure AI → Process → View Results → Export
@@ -226,4 +211,3 @@ curl -X GET /api/jobs/{job_id}
 ./start-full-stack.sh
 ```
 
-**🎉 Upload and AI functions are now WORKING! Test them at: https://sb-1sy34wf0itsg.vercel.run**
