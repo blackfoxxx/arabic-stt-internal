@@ -2,7 +2,7 @@
 
 ## ✅ **UPLOAD & AI PROCESSING: NOW WORKING**
 
-### 🌐 **Live Platform**: https://sb-1sy34wf0itsg.vercel.run
+
 
 ---
 
