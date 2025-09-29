@@ -21,7 +21,9 @@ import {
   Upload,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Users,
+  TrendingUp
 } from 'lucide-react';
 
 interface TrainingStatistics {
