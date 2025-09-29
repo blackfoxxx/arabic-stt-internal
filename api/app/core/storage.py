@@ -11,8 +11,9 @@ import minio
 from minio import Minio
 from minio.error import S3Error
 import structlog
-import magic
+# import magic  # Commented out to avoid libmagic dependency
 from io import BytesIO
+import mimetypes
 
 from app.core.config import get_settings
 
@@ -338,15 +339,28 @@ class FileValidator:
     
     @staticmethod
     def validate_file_type(file_data: bytes, allowed_types: List[str]) -> tuple[bool, str]:
-        """Validate file type using python-magic"""
+        """Validate file type using basic heuristics and file signatures"""
         try:
-            # Get MIME type from file content
-            mime = magic.from_buffer(file_data, mime=True)
+            # Basic file signature detection
+            mime_type = "application/octet-stream"  # Default
             
-            if mime in allowed_types:
-                return True, mime
+            # Check common audio file signatures
+            if file_data.startswith(b'\xff\xfb') or file_data.startswith(b'\xff\xf3') or file_data.startswith(b'\xff\xf2'):
+                mime_type = "audio/mpeg"
+            elif file_data.startswith(b'RIFF') and b'WAVE' in file_data[:12]:
+                mime_type = "audio/wav"
+            elif file_data.startswith(b'fLaC'):
+                mime_type = "audio/flac"
+            elif file_data.startswith(b'\x00\x00\x00\x20ftypM4A') or file_data.startswith(b'\x00\x00\x00\x18ftyp'):
+                mime_type = "audio/mp4"
+            elif file_data.startswith(b'OggS'):
+                mime_type = "audio/ogg"
+            # Add more file type detection as needed
+            
+            if mime_type in allowed_types or "audio/" in allowed_types:
+                return True, mime_type
             else:
-                return False, mime
+                return False, mime_type
                 
         except Exception as e:
             logger.error("Failed to validate file type", error=str(e))

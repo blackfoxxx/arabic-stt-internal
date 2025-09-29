@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { demoAIProcessor } from '@/lib/demo-ai-processor';
 import { Button } from '@/components/ui/button';
@@ -38,17 +38,37 @@ interface Speaker {
 
 interface TranscriptData {
   id: string;
+  filename: string;
   status: string;
-  language: string;
-  model_used: string;
-  confidence_score: number;
+  created_at: string;
   processing_time: number;
+  language?: string;
+  model_used?: string;
+  confidence_score?: number;
   segments: TranscriptSegment[];
   speakers: Speaker[];
   ai_processing_info: {
     realtime_factor: number;
-    quality_metrics: any;
+    quality_metrics: {
+      confidence_score: number;
+      noise_level: number;
+      clarity_rating: number;
+      audio_quality?: number;
+      enhancement_applied?: string;
+      dialect_detected?: string;
+      accuracy_estimate?: string;
+    };
     features_used: string[];
+  };
+  llm_enhancements?: {
+    grammar_correction?: {
+      original_text: string;
+      corrected_text: string;
+      corrections_made: number;
+    };
+    overall_summary?: string;
+    keywords?: string[];
+    translation?: string;
   };
 }
 
@@ -61,11 +81,7 @@ export default function TranscriptPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadTranscript();
-  }, [transcriptId]);
-
-  const loadTranscript = async () => {
+  const loadTranscript = useCallback(async () => {
     try {
       // Try to get results from demo AI processor first
       const allJobs = demoAIProcessor.getAllJobs();
@@ -80,7 +96,9 @@ export default function TranscriptPage() {
         
         const transcriptFromAI: TranscriptData = {
           id: transcriptId,
+          filename: `transcript_${transcriptId}.mp3`, // Default filename
           status: 'completed',
+          created_at: new Date().toISOString(),
           language: result.language,
           model_used: result.model_used,
           confidence_score: result.confidence_score,
@@ -100,8 +118,12 @@ export default function TranscriptPage() {
           })),
           ai_processing_info: {
             realtime_factor: result.processing_time / 60, // Estimate
-            quality_metrics: result.quality_metrics,
-            features_used: result.ai_features_used
+            quality_metrics: {
+              confidence_score: result.confidence_score || 0.9,
+              noise_level: 0.1, // Default value
+              clarity_rating: 0.85 // Default value
+            },
+            features_used: result.ai_features_used || []
           }
         };
 
@@ -119,6 +141,8 @@ export default function TranscriptPage() {
           model_used: 'large-v3',
           confidence_score: 0.92,
           processing_time: 34.5,
+          filename: 'sample_audio.wav',
+          created_at: new Date().toISOString(),
           segments: [
             {
               id: 'seg_1',
@@ -185,6 +209,9 @@ export default function TranscriptPage() {
           ai_processing_info: {
             realtime_factor: 0.76,
             quality_metrics: {
+              confidence_score: 0.91,
+              noise_level: 0.2,
+              clarity_rating: 0.87,
               audio_quality: 0.87,
               enhancement_applied: 'medium',
               dialect_detected: 'العربية الفصحى',
@@ -207,7 +234,11 @@ export default function TranscriptPage() {
       console.error('Failed to load transcript:', error);
       setIsLoading(false);
     }
-  };
+  }, [transcriptId]);
+
+  useEffect(() => {
+    loadTranscript();
+  }, [loadTranscript]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -345,7 +376,7 @@ export default function TranscriptPage() {
             <div className="grid md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600 mb-1">
-                  {Math.round(transcript.confidence_score * 100)}%
+                  {Math.round((transcript.confidence_score || 0.9) * 100)}%
                 </div>
                 <div className="text-sm text-gray-600">دقة التفريغ</div>
               </div>
@@ -386,10 +417,10 @@ export default function TranscriptPage() {
                 <div>
                   <h5 className="text-sm font-medium text-blue-800 mb-2">مقاييس الجودة:</h5>
                   <div className="space-y-1 text-xs text-blue-700">
-                    <div>جودة الصوت: {Math.round(transcript.ai_processing_info.quality_metrics.audio_quality * 100)}%</div>
+                    <div>جودة الصوت: {Math.round((transcript.ai_processing_info.quality_metrics.audio_quality || 0.85) * 100)}%</div>
                     <div>سرعة المعالجة: {transcript.ai_processing_info.realtime_factor.toFixed(2)}x</div>
-                    <div>اللهجة المكتشفة: {transcript.ai_processing_info.quality_metrics.dialect_detected}</div>
-                    <div>النموذج: {transcript.model_used}</div>
+                    <div>اللهجة المكتشفة: {transcript.ai_processing_info.quality_metrics.dialect_detected || 'غير محدد'}</div>
+                    <div>النموذج: {transcript.model_used || 'غير محدد'}</div>
                   </div>
                 </div>
               </div>
@@ -398,9 +429,10 @@ export default function TranscriptPage() {
         </Card>
 
         <Tabs defaultValue="transcript" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="transcript">النسخة النصية</TabsTrigger>
             <TabsTrigger value="speakers">المتحدثون</TabsTrigger>
+            <TabsTrigger value="llm-enhancements">تحسينات الذكاء الاصطناعي</TabsTrigger>
             <TabsTrigger value="analytics">التحليلات</TabsTrigger>
             <TabsTrigger value="export">التصدير</TabsTrigger>
           </TabsList>
@@ -535,6 +567,135 @@ export default function TranscriptPage() {
             </Card>
           </TabsContent>
 
+          {/* LLM Enhancements Tab */}
+          <TabsContent value="llm-enhancements">
+            <div className="space-y-6">
+              {transcript.llm_enhancements ? (
+                <>
+                  {/* Grammar Correction */}
+                  {transcript.llm_enhancements.grammar_correction && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <span>📝</span>
+                          تصحيح القواعد والإملاء
+                        </CardTitle>
+                        <CardDescription>
+                          تحسينات نحوية وإملائية بواسطة الذكاء الاصطناعي
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="p-4 bg-red-50 rounded-lg">
+                            <h4 className="font-medium text-red-800 mb-2">النص الأصلي:</h4>
+                            <p className="text-right text-red-700 leading-relaxed">
+                              {transcript.llm_enhancements.grammar_correction.original_text}
+                            </p>
+                          </div>
+                          
+                          <div className="p-4 bg-green-50 rounded-lg">
+                            <h4 className="font-medium text-green-800 mb-2">النص المُصحح:</h4>
+                            <p className="text-right text-green-700 leading-relaxed">
+                              {transcript.llm_enhancements.grammar_correction.corrected_text}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Badge variant="outline">
+                              {transcript.llm_enhancements.grammar_correction.corrections_made} تصحيح
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Summary */}
+                  {transcript.llm_enhancements.overall_summary && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <span>📋</span>
+                          الملخص الشامل
+                        </CardTitle>
+                        <CardDescription>
+                          ملخص ذكي للمحتوى الصوتي
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="p-4 bg-blue-50 rounded-lg">
+                          <p className="text-right text-blue-800 leading-relaxed">
+                            {transcript.llm_enhancements.overall_summary}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Keywords */}
+                  {transcript.llm_enhancements.keywords && transcript.llm_enhancements.keywords.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <span>🔑</span>
+                          الكلمات المفتاحية
+                        </CardTitle>
+                        <CardDescription>
+                          أهم المصطلحات والمفاهيم المستخرجة
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {transcript.llm_enhancements.keywords.map((keyword, index) => (
+                            <Badge key={index} variant="secondary" className="text-sm">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Translation */}
+                  {transcript.llm_enhancements.translation && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <span>🌐</span>
+                          الترجمة الإنجليزية
+                        </CardTitle>
+                        <CardDescription>
+                          ترجمة المحتوى إلى الإنجليزية
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <p className="text-left text-gray-800 leading-relaxed" dir="ltr">
+                            {transcript.llm_enhancements.translation}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="text-gray-500 mb-4">
+                      <span className="text-4xl">🤖</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      لا توجد تحسينات ذكاء اصطناعي
+                    </h3>
+                    <p className="text-gray-600">
+                      لم يتم تفعيل تحسينات الذكاء الاصطناعي لهذا التفريغ
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
           {/* Analytics Tab */}
           <TabsContent value="analytics">
             <div className="grid md:grid-cols-2 gap-6">
@@ -547,17 +708,17 @@ export default function TranscriptPage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>دقة التفريغ الإجمالية</span>
-                        <span>{Math.round(transcript.confidence_score * 100)}%</span>
+                        <span>{Math.round((transcript.confidence_score || 0.9) * 100)}%</span>
                       </div>
-                      <Progress value={transcript.confidence_score * 100} />
+                      <Progress value={(transcript.confidence_score || 0.9) * 100} />
                     </div>
                     
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>جودة الصوت الأصلي</span>
-                        <span>{Math.round(transcript.ai_processing_info.quality_metrics.audio_quality * 100)}%</span>
+                        <span>{Math.round((transcript.ai_processing_info.quality_metrics.audio_quality || 0.85) * 100)}%</span>
                       </div>
-                      <Progress value={transcript.ai_processing_info.quality_metrics.audio_quality * 100} />
+                      <Progress value={(transcript.ai_processing_info.quality_metrics.audio_quality || 0.85) * 100} />
                     </div>
 
                     <div className="text-sm space-y-2">

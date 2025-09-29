@@ -24,9 +24,9 @@ settings = get_settings()
 # Request/Response schemas
 class UploadUrlRequest(BaseModel):
     filename: str = Field(..., min_length=1, max_length=500)
-    content_type: str = Field(..., regex=r'^(audio|video)\/[a-zA-Z0-9][a-zA-Z0-9\-\+]*$')
+    content_type: str = Field(..., pattern=r'^(audio|video)\/[a-zA-Z0-9][a-zA-Z0-9\-\+]*$')
     file_size: int = Field(..., gt=0, le=settings.MAX_FILE_SIZE_MB * 1024 * 1024)
-    project_id: Optional[str] = Field(None, regex=r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+    project_id: Optional[str] = Field(None, pattern=r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
     
     @validator('filename')
     def validate_filename(cls, v):

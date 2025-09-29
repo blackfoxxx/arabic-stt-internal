@@ -304,7 +304,7 @@ export default function HelpPage() {
                   </div>
 
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">رسالة "نوع الملف غير مدعوم"</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">رسالة &quot;نوع الملف غير مدعوم&quot;</h4>
                     <div className="text-sm text-gray-600 space-y-1">
                       <div>• استخدم صيغ صوتية: MP3, WAV, FLAC, OGG</div>
                       <div>• أو صيغ مرئية: MP4, AVI, MOV, WMV</div>

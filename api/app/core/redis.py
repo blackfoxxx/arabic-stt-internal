@@ -5,8 +5,8 @@ Redis configuration and utilities
 import json
 import pickle
 from typing import Any, Optional, Union, Dict, List
-import aioredis
-from aioredis import Redis
+import redis.asyncio as aioredis
+from redis.asyncio import Redis
 import structlog
 from contextlib import asynccontextmanager
 

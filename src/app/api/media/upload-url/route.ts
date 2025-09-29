@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { filename, content_type, file_size, project_id } = body;
+    const { filename, content_type, file_size } = body;
 
     // Basic validation
     if (!filename || !content_type) {

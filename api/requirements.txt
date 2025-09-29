@@ -12,12 +12,12 @@ asyncpg==0.29.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
+PyJWT==2.8.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # Redis & Caching
 redis==5.0.1
-aioredis==2.0.1
 
 # Storage (MinIO)
 minio==7.2.0
@@ -68,4 +68,4 @@ python-magic==0.4.27
 pillow==10.1.0
 
 # Webhook security
-cryptography==41.0.8
+cryptography==42.0.5

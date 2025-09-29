@@ -1,16 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface TranscriptSegment {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+  confidence: number;
+  speaker_id?: string;
+}
+
+interface Speaker {
+  id: string;
+  name: string;
+  segments: number;
+}
+
+interface ProcessingInfo {
+  model_used: string;
+  processing_time: number;
+  quality_metrics: Record<string, number>;
+}
+
+interface JobResult {
+  transcript_id?: string;
+  segments?: TranscriptSegment[];
+  speakers?: Speaker[];
+  processing_info?: ProcessingInfo;
+  segments_count?: number;
+  speakers_count?: number;
+  confidence_score?: number;
+  processing_time?: number;
+  realtime_factor?: number;
+  language_detected?: string;
+  model_used?: string;
+  audio_duration?: number;
+  quality_metrics?: Record<string, unknown>;
+  ai_features_used?: string[];
+}
+
 interface JobStatus {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
-  message: string;
-  current_step: string;
-  created_at: string;
+  message?: string;
+  current_step?: string;
   started_at?: string;
   completed_at?: string;
   error_message?: string;
-  result?: any;
+  result?: JobResult;
+  created_at?: string;
 }
 
 // In-memory job storage for demo (in production this would be in Redis/Database)

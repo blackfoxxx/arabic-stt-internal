@@ -109,16 +109,6 @@ export async function POST(request: NextRequest) {
 
     // Simulate job processing with realistic AI processing steps
     setTimeout(async () => {
-      // Simulate processing progress updates
-      const progressSteps = [
-        { progress: 10, message: 'معالجة وتحسين جودة الصوت', step: 'audio_preprocessing' },
-        { progress: 30, message: 'تحويل الكلام إلى نص باستخدام الذكاء الاصطناعي', step: 'speech_recognition' },
-        { progress: 60, message: 'تحديد وفصل المتحدثين', step: 'speaker_diarization' },
-        { progress: 80, message: 'معالجة النص العربي وتحسين الجودة', step: 'text_postprocessing' },
-        { progress: 90, message: 'حفظ النتائج في قاعدة البيانات', step: 'database_storage' },
-        { progress: 100, message: 'اكتملت المعالجة بنجاح', step: 'completed' }
-      ];
-      
       // In a real implementation, these would be WebSocket updates or stored in Redis
       console.log(`Job ${jobId} processing simulation started`);
     }, 100);

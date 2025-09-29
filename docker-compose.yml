@@ -91,7 +91,7 @@ services:
       # Application
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8000"
       
       # Stripe
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}

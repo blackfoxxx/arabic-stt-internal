@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     # API Configuration
     API_HOST: str = Field(default="0.0.0.0", description="API host")
     API_PORT: int = Field(default=8000, description="API port")
-    ALLOWED_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
-        description="CORS allowed origins"
+    ALLOWED_ORIGINS: str = Field(
+        default="http://localhost:3000,http://localhost:8000",
+        description="CORS allowed origins (comma-separated)"
     )
     
     # Database
@@ -128,11 +128,10 @@ class Settings(BaseSettings):
     ENABLE_METRICS: bool = Field(default=True, description="Enable Prometheus metrics")
     METRICS_PORT: int = Field(default=9090, description="Metrics server port")
     
-    @validator("ALLOWED_ORIGINS", pre=True)
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [x.strip() for x in v.split(",")]
-        return v
+    @property
+    def cors_origins(self) -> List[str]:
+        """Get CORS origins as a list"""
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
     
     @validator("JWT_SECRET")
     def validate_jwt_secret(cls, v):

@@ -1,0 +1,43 @@
+{
+  "text_content": "شكراً لكم. بعد ما أعرف، لا لا، ما عادي، ما عندي شي ما أخبرتك به، ولكن لدي يوم نيئ عندما أرى بناتي، إن شاء الله، والله إن شاء الله رحمة الله عز وجل. لا لا، لم أتواصل معهم، لا أعرف كل شيء، فقط أخبرتني أنني سأرى بناتي قبل التنفيذ.",
+  "full_transcription": "شكراً لكم. بعد ما أعرف، لا لا، ما عادي، ما عندي شي ما أخبرتك به، ولكن لدي يوم نيئ عندما أرى بناتي، إن شاء الله، والله إن شاء الله رحمة الله عز وجل. لا لا، لم أتواصل معهم، لا أعرف كل شيء، فقط أخبرتني أنني سأرى بناتي قبل التنفيذ.",
+  "audio_file": "d:\\AI SST\\arabic-stt-internal\\250825_1107.mp3",
+  "original_audio_file": "250825_1107.mp3",
+  "final_assessment": {
+    "overall_credibility": 0.11547369311446992,
+    "emotional_authenticity": 0.11804887007171332,
+    "stress_level": 0.39168025171072135,
+    "deception_likelihood": 0.13567526828263524,
+    "cognitive_clarity": 0.935,
+    "multimodal_consistency": 0.6034600758479942,
+    "voice_quality": 0.8333333333333334,
+    "narrative_coherence": 0.2958707517282249,
+    "confidence_score": 0.3,
+    "psychological_wellness": 0.6046777341053077
+  },
+  "recommendations": [
+    "🚨 Low overall credibility - requires thorough verification",
+    "😐 Emotional expression may not be authentic"
+  ],
+  "processing_time": 915.2885994911194,
+  "analysis_timestamp": "2025-09-28T22:33:59.952015",
+  "summary": {
+    "overall_sentiment": "negative",
+    "sentiment_confidence": 0.0,
+    "truth_likelihood": 0.46373809866700044,
+    "truth_confidence": 0.3,
+    "voice_quality": 0.8333333333333334,
+    "stress_level": 0.39168025171072135,
+    "deception_likelihood": 0.13567526828263524,
+    "emotional_authenticity": 0.11804887007171332,
+    "multimodal_consistency": 0.6034600758479942
+  },
+  "transcription_info": {
+    "model_used": "large-v3",
+    "language": "Arabic",
+    "processing_date": "2025-09-28",
+    "total_duration": "65 minutes 3 seconds",
+    "total_characters": 227,
+    "total_words": 49
+  }
+}

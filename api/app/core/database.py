@@ -63,8 +63,7 @@ async def create_tables():
         async with engine.begin() as conn:
             # Import all models to register them
             from app.models import (
-                user, organization, media, job, 
-                transcript, export, webhook, usage, audit
+                user, organization, media, job, api_key, project
             )
             
             await conn.run_sync(Base.metadata.create_all)

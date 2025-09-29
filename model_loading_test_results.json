@@ -1,0 +1,40 @@
+{
+  "ollama_tests": {
+    "llama3.1:8b": {
+      "success": true,
+      "response": "Here is the translation:\n\n\"Welcome to the Training System.\""
+    },
+    "llama3.1:70b-instruct-q4_K_M": {
+      "success": true,
+      "response": "مرحباً بكم في نظام تدريب الذكاء الاصطناعي"
+    },
+    "aya:35b-23-q4_K_M": {
+      "success": true,
+      "response": "أهلاً وسهلاً بك في نظام التدريب."
+    }
+  },
+  "training_api_tests": {
+    "success": true,
+    "models": [
+      {
+        "name": "llama3.1:8b",
+        "description": "Llama 3.1 8B - Fast training, good for experimentation",
+        "recommended_batch_size": 4,
+        "memory_requirement": "16GB VRAM"
+      },
+      {
+        "name": "llama3.1:70b-instruct-q4_K_M",
+        "description": "Llama 3.1 70B Quantized - High quality, slower training",
+        "recommended_batch_size": 1,
+        "memory_requirement": "24GB VRAM"
+      },
+      {
+        "name": "aya:35b-23-q4_K_M",
+        "description": "Aya 35B - Specialized for multilingual including Arabic",
+        "recommended_batch_size": 2,
+        "memory_requirement": "20GB VRAM"
+      }
+    ]
+  },
+  "overall_status": "passed"
+}

@@ -4,7 +4,7 @@ Job model for transcription and processing tasks
 
 import enum
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, JSON, Enum as SQLEnum, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Float, JSON, Enum as SQLEnum, ForeignKey, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 

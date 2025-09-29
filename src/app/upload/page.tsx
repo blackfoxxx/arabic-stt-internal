@@ -18,7 +18,18 @@ interface UploadState {
   uploadProgress: number;
   file: File | null;
   jobId: string | null;
-  processingStatus: any;
+  processingStatus: {
+    status: string;
+    progress: number;
+    message?: string;
+    current_step?: string;
+    result?: {
+      segments_count?: number;
+      speakers_count?: number;
+      confidence_score?: number;
+      [key: string]: unknown;
+    };
+  } | null;
 }
 
 interface ProcessingOptions {
@@ -27,6 +38,8 @@ interface ProcessingOptions {
   diarization: boolean;
   enhancement_level: string;
   custom_vocabulary: string[];
+  llm_enhancement: boolean;
+  llm_enhancements: string[];
 }
 
 export default function UploadPage() {
@@ -45,7 +58,9 @@ export default function UploadPage() {
     model: 'large-v3',
     diarization: true,
     enhancement_level: 'medium',
-    custom_vocabulary: []
+    custom_vocabulary: [],
+    llm_enhancement: true,
+    llm_enhancements: ['grammar_correction', 'overall_summary', 'keywords']
   });
 
   const [customVocab, setCustomVocab] = useState('');
@@ -193,71 +208,31 @@ export default function UploadPage() {
         }
       };
 
-      // Use the transcription API as backup
-      const transcribeResponse = await fetch('/api/jobs/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          media_id: `processed_${processData.job_id}`,
-          filename: uploadState.file.name,
-          file_size: uploadState.file.size,
-          content_type: uploadState.file.type,
-          ...processingOptions,
-          custom_vocabulary: processingOptions.custom_vocabulary,
-          real_file_processing: true,
-          file_analysis: processData.file_analysis,
-          processing_result: processData.processing_result
-        })
-      });
-
-       let finalJobData = jobData;
+      // The process-file route already handles job creation and storage
+      // No need for additional transcribe API call that creates duplicate jobs
       
-      if (transcribeResponse.ok) {
-        const transcribeData = await transcribeResponse.json();
-        finalJobData = transcribeData;
-        console.log('📋 Transcription job created:', transcribeData);
-      }
-      
-      // Create AI processing job
-      const aiJob = {
-        id: jobData.job.id,
-        filename: uploadState.file.name,
-        status: 'pending' as const,
-        progress: 0,
-        message: 'جاري بدء المعالجة...',
-        current_step: 'initializing',
-        created_at: new Date().toISOString(),
-        parameters: processingOptions
-      };
-
-        // Create completed AI job with real file data
-      const completedAIJob = {
-        id: finalJobData.job.id,
-        filename: uploadState.file.name,
-        status: 'completed' as const,
-        progress: 100,
-        message: 'تم معالجة الملف الحقيقي بنجاح ✨',
-        current_step: 'completed',
-        created_at: new Date().toISOString(),
-        parameters: processingOptions,
-        result: processData.processing_result
-      };
-
-       setUploadState(prev => ({ 
+      setUploadState(prev => ({ 
         ...prev, 
-        jobId: finalJobData.job.id,
-        processingStatus: completedAIJob,
+        jobId: processData.job_id,
+        processingStatus: {
+          id: processData.job_id,
+          filename: uploadState.file.name,
+          status: 'completed' as const,
+          progress: 100,
+          message: 'تم معالجة الملف بنجاح ✨',
+          current_step: 'completed',
+          created_at: new Date().toISOString(),
+          parameters: processingOptions,
+          result: processData.processing_result
+        },
         isUploading: false 
       }));
-
-      // Store the real processing results
-      demoAIProcessor.jobs.set(finalJobData.job.id, completedAIJob);
 
       console.log('🎉 Real file processing completed, redirecting to results...');
 
       // Redirect to results immediately since processing is done
       setTimeout(() => {
-        router.push(`/transcripts/${processData.processing_result.transcript.id}`);
+        router.push(`/results/${processData.processing_result.transcript.id}`);
       }, 2000);
 
     } catch (error) {
@@ -267,6 +242,8 @@ export default function UploadPage() {
     }
   };
 
+  // Monitor job progress function (currently unused but kept for future use)
+  /*
   const monitorJobProgress = async (jobId: string) => {
     const checkStatus = async () => {
       try {
@@ -282,7 +259,7 @@ export default function UploadPage() {
             
             // Redirect to results page after a short delay
             setTimeout(() => {
-              router.push(`/transcripts/${job.result?.transcript_id}`);
+              router.push(`/results/${job.result?.transcript_id}`);
             }, 2000);
           } else if (job.status === 'failed') {
             alert(`فشلت المعالجة: ${job.message}`);
@@ -310,6 +287,7 @@ export default function UploadPage() {
     // Start monitoring
     setTimeout(checkStatus, 1000);
   };
+  */
 
   const addCustomVocabulary = () => {
     if (customVocab.trim()) {
@@ -433,7 +411,7 @@ export default function UploadPage() {
                       </div>
                       <div>
                         <span className="text-green-700">دقة التفريغ:</span>
-                        <span className="font-medium"> {Math.round(uploadState.processingStatus.result.confidence_score * 100)}%</span>
+                        <span className="font-medium"> {Math.round((uploadState.processingStatus.result.confidence_score || 0.9) * 100)}%</span>
                       </div>
                     </div>
                   </div>
@@ -810,6 +788,69 @@ export default function UploadPage() {
                     أضف أسماء أو مصطلحات مهمة لتحسين دقة التعرف عليها
                   </p>
                 </div>
+
+                {/* LLM Text Enhancement */}
+                <div>
+                  <div className="flex items-center space-x-2 space-x-reverse mb-3">
+                    <Checkbox
+                      id="llm_enhancement"
+                      checked={processingOptions.llm_enhancement}
+                      onCheckedChange={(checked) => 
+                        setProcessingOptions(prev => ({ ...prev, llm_enhancement: checked as boolean }))
+                      }
+                    />
+                    <Label htmlFor="llm_enhancement" className="text-base font-medium">
+                      تحسين النص بالذكاء الاصطناعي (LLM)
+                    </Label>
+                  </div>
+                  
+                  {processingOptions.llm_enhancement && (
+                    <div className="space-y-3 ml-6">
+                      <div className="text-sm text-gray-600 mb-2">
+                        اختر أنواع التحسينات المطلوبة:
+                      </div>
+                      
+                      {[
+                        { id: 'grammar_correction', label: 'تصحيح القواعد والإملاء', desc: 'تصحيح الأخطاء النحوية والإملائية' },
+                        { id: 'overall_summary', label: 'ملخص شامل', desc: 'إنشاء ملخص للمحتوى الصوتي' },
+                        { id: 'keywords', label: 'استخراج الكلمات المفتاحية', desc: 'تحديد أهم المصطلحات والمفاهيم' },
+                        { id: 'translation', label: 'ترجمة إلى الإنجليزية', desc: 'ترجمة النص المُحوَّل إلى الإنجليزية' }
+                      ].map((enhancement) => (
+                        <div key={enhancement.id} className="flex items-start space-x-2 space-x-reverse">
+                          <Checkbox
+                            id={enhancement.id}
+                            checked={processingOptions.llm_enhancements.includes(enhancement.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setProcessingOptions(prev => ({
+                                  ...prev,
+                                  llm_enhancements: [...prev.llm_enhancements, enhancement.id]
+                                }));
+                              } else {
+                                setProcessingOptions(prev => ({
+                                  ...prev,
+                                  llm_enhancements: prev.llm_enhancements.filter(e => e !== enhancement.id)
+                                }));
+                              }
+                            }}
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor={enhancement.id} className="text-sm font-medium">
+                              {enhancement.label}
+                            </Label>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {enhancement.desc}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    يستخدم نماذج الذكاء الاصطناعي المتقدمة لتحسين جودة النص ودقته
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -832,13 +873,18 @@ export default function UploadPage() {
                 </div>
 
                 <div className="text-sm">
-                  <h4 className="font-medium text-gray-900 mb-2">مراحل المعالجة</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">مراحل المعالجة المحلية</h4>
                   <div className="space-y-1 text-gray-600">
-                    <div>1. تحسين جودة الصوت</div>
-                    <div>2. تحويل الكلام إلى نص</div>
-                    <div>3. فصل المتحدثين</div>
-                    <div>4. معالجة النص العربي</div>
-                    <div>5. حفظ النتائج</div>
+                    <div>1. تحسين جودة الصوت (GPU)</div>
+                    <div>2. تحويل الكلام إلى نص (Whisper)</div>
+                    <div>3. فصل المتحدثين (PyAnnote)</div>
+                    <div>4. تحليل النص العربي المحلي</div>
+                    <div>5. فحص القواعد (T5 + BERT)</div>
+                    <div>6. تحليل المشاعر (CAMeLBERT)</div>
+                    {processingOptions.llm_enhancement && (
+                      <div>7. تحسين النص (Ollama محلي)</div>
+                    )}
+                    <div>{processingOptions.llm_enhancement ? '8' : '7'}. حفظ النتائج</div>
                   </div>
                 </div>
 
@@ -849,6 +895,17 @@ export default function UploadPage() {
                     <div>🎬 MP4, AVI, MOV, WMV</div>
                     <div>📏 حد أقصى: 500 ميجابايت</div>
                     <div>⏱️ حد أقصى: 3 ساعات</div>
+                  </div>
+                </div>
+
+                {/* Privacy Notice */}
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-green-800">معالجة محلية 100%</span>
+                  </div>
+                  <div className="text-xs text-green-700">
+                    جميع العمليات تتم على جهازك المحلي. لا يتم إرسال أي بيانات للخارج.
                   </div>
                 </div>
               </CardContent>

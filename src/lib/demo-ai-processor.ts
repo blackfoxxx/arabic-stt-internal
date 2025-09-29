@@ -51,11 +51,17 @@ export interface AIProcessingResult {
     dialect_detected: string;
     enhancement_applied: string;
   };
+  llm_enhancements?: {
+    grammar_correction?: string;
+    overall_summary?: string;
+    keywords?: string[];
+    translation?: string;
+  };
 }
 
 class DemoAIProcessor {
   public jobs: Map<string, AIProcessingJob> = new Map();
-  private processingIntervals: Map<string, any> = new Map();
+  private processingIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   startProcessing(job: AIProcessingJob): void {
     console.log(`🤖 Starting AI processing simulation for job: ${job.id}`);
@@ -200,13 +206,20 @@ class DemoAIProcessor {
         'pyannote.audio diarization',
         'Audio enhancement',
         'Arabic text normalization',
-        'Quality assessment'
+        'Quality assessment',
+        'LLM text enhancement'
       ],
       quality_metrics: {
         audio_quality: 0.87,
         accuracy_estimate: '91%',
         dialect_detected: job.parameters?.language === 'ar-IQ' ? 'العراقية' : 'العربية الفصحى',
         enhancement_applied: job.parameters?.enhancement_level || 'medium'
+      },
+      llm_enhancements: {
+        grammar_correction: `تم تصحيح النص وتحسين القواعد النحوية للملف "${job.filename}". تم إصلاح الأخطاء الإملائية وتحسين بنية الجمل لتصبح أكثر وضوحاً ودقة.`,
+        overall_summary: `ملخص المحتوى: يتناول هذا التسجيل الصوتي عملية معالجة الملفات الصوتية باستخدام تقنيات الذكاء الاصطناعي المتقدمة، مع التركيز على التعرف على الكلام وفصل المتحدثين وإنتاج نتائج عالية الجودة جاهزة للاستخدام.`,
+        keywords: ['الذكاء الاصطناعي', 'معالجة صوتية', 'تفريغ نصوص', 'فصل المتحدثين', 'تقنيات متقدمة', 'جودة عالية'],
+        translation: `File "${job.filename}" has been successfully processed using artificial intelligence. Advanced technologies were used for speech recognition and speaker separation. The results are ready for review, editing, and export in multiple formats.`
       }
     };
 
@@ -278,7 +291,12 @@ class DemoAIProcessor {
     quality_score: number;
     processing_estimate: string;
     recommended_model: string;
-    file_info: any;
+    file_info: {
+      name: string;
+      size: number;
+      type: string;
+      lastModified: number;
+    };
   } {
     // Estimate duration based on file size and type
     let durationEstimate = 60; // Default 1 minute
@@ -319,8 +337,9 @@ class DemoAIProcessor {
       recommended_model: recommendedModel,
       file_info: {
         name: file.name,
-        size_mb: (file.size / (1024 * 1024)).toFixed(1),
-        type: file.type
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
       }
     };
   }

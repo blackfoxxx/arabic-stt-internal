@@ -27,8 +27,17 @@ interface RecentJob {
   createdAt: string;
 }
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  organization?: string;
+  plan?: string;
+}
+
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalFiles: 0,
     totalMinutes: 0,
@@ -102,61 +111,108 @@ export default function DashboardPage() {
     window.location.href = '/help';
   };
 
-  useEffect(() => {
-    // Load data immediately without delay
-    console.log('📊 Loading dashboard data...');
+  const handleRefreshData = async () => {
+    console.log('🔄 Refreshing dashboard data...');
+    setIsLoading(true);
     
-      // Internal system user (no commercial aspects)
-    const internalUser = {
-      name: 'مدير النظام',
-      email: 'admin@company.com', 
-      organization: 'النظام الداخلي',
-      plan: 'نظام داخلي'
+    try {
+      const response = await fetch('/api/dashboard-stats');
+      const data = await response.json();
+      
+      if (data.success) {
+        setStats(data.stats);
+        setUser(data.user);
+        setRecentJobs(data.recentJobs);
+        console.log('✅ Dashboard data refreshed:', { 
+          totalFiles: data.stats.totalFiles,
+          totalMinutes: data.stats.totalMinutes,
+          completedJobs: data.stats.completedJobs,
+          recentJobs: data.recentJobs.length 
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to refresh dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Load real data from API
+    console.log('📊 Loading dashboard data from API...');
+    
+    const loadDashboardData = async () => {
+      try {
+        const response = await fetch('/api/dashboard-stats');
+        const data = await response.json();
+        
+        if (data.success) {
+          setStats(data.stats);
+          setUser(data.user);
+          setRecentJobs(data.recentJobs);
+          console.log('✅ Real dashboard data loaded:', { 
+            totalFiles: data.stats.totalFiles,
+            totalMinutes: data.stats.totalMinutes,
+            completedJobs: data.stats.completedJobs,
+            recentJobs: data.recentJobs.length 
+          });
+        } else {
+          console.warn('⚠️ Dashboard API returned error, using fallback data');
+          // Fallback to demo data if API fails
+          loadFallbackData();
+        }
+      } catch (error) {
+        console.error('❌ Failed to load dashboard data:', error);
+        // Load demo data as fallback
+        loadFallbackData();
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    const internalJobs = [
-      {
-        id: '1',
-        filename: 'اجتماع_الإدارة_2024.mp3',
-        status: 'completed' as const,
-        progress: 100,
-        duration: 1845,
-        createdAt: '2024-01-15T10:30:00Z'
-      },
-      {
-        id: '2', 
-        filename: 'تدريب_الموظفين.mp4',
-        status: 'processing' as const,
-        progress: 75,
-        duration: 3420,
-        createdAt: '2024-01-15T09:15:00Z'
-      },
-      {
-        id: '3',
-        filename: 'مكالمة_عمل.wav',
-        status: 'pending' as const,
-        progress: 0,
-        duration: 1230,
-        createdAt: '2024-01-15T08:45:00Z'
-      }
-    ];
+    const loadFallbackData = () => {
+      const internalUser = {
+        id: 'internal-admin',
+        name: 'مدير النظام',
+        email: 'admin@company.com', 
+        organization: 'النظام الداخلي',
+        plan: 'نظام داخلي'
+      };
 
-    // Update stats for internal use (no usage limits)
-    setStats(prev => ({
-      ...prev,
-      totalFiles: 47,
-      totalMinutes: 1250,
-      completedJobs: 38,
-      pendingJobs: 2,
-      monthlyUsage: 0, // No usage tracking for internal
-      monthlyLimit: 0  // No limits for internal
-    }));
+      const internalJobs = [
+        {
+          id: '1',
+          filename: 'اجتماع_الإدارة_2024.mp3',
+          status: 'completed' as const,
+          progress: 100,
+          duration: 1845,
+          createdAt: '2024-01-15T10:30:00Z'
+        },
+        {
+          id: '2', 
+          filename: 'تدريب_الموظفين.mp4',
+          status: 'processing' as const,
+          progress: 75,
+          duration: 3420,
+          createdAt: '2024-01-15T09:15:00Z'
+        }
+      ];
 
-    setUser(internalUser);
-    setRecentJobs(internalJobs);
-    setIsLoading(false);
-    
-     console.log('✅ Dashboard data loaded:', { user: internalUser, jobs: internalJobs.length });
+      setStats({
+        totalFiles: 2,
+        totalMinutes: 85,
+        completedJobs: 1,
+        pendingJobs: 1,
+        monthlyUsage: 0,
+        monthlyLimit: 0
+      });
+
+      setUser(internalUser);
+      setRecentJobs(internalJobs);
+      console.log('✅ Fallback dashboard data loaded');
+    };
+
+    loadDashboardData();
 
     // Simulate real-time job updates for processing jobs
     const updateProcessingJobs = () => {
@@ -242,14 +298,28 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">لوحة التحكم</h1>
-                <p className="text-sm text-gray-600">{user?.organization}</p>
+                <p className="text-sm text-gray-600">مرحباً، {user?.name}</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4 space-x-reverse">
-              <span className="text-sm text-gray-600">مرحباً، {user?.name}</span>
-               <Button variant="outline" size="sm" onClick={handleLogout}>
-                تسجيل الخروج
+              <Button 
+                variant="outline" 
+                onClick={handleRefreshData}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <span className={isLoading ? "animate-spin" : ""}>🔄</span>
+                تحديث البيانات
+              </Button>
+              <Button variant="outline" onClick={handleViewStats}>
+                📊 إحصائيات تفصيلية
+              </Button>
+              <Button variant="outline" onClick={handleAccountSettings}>
+                ⚙️ الإعدادات
+              </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                🚪 تسجيل الخروج
               </Button>
             </div>
           </div>
@@ -325,7 +395,7 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle>رفع ملف جديد</CardTitle>
                 <CardDescription>
-                  ارفع ملفاً صوتياً أو مرئياً للحصول على نسخة نصية
+                  ارفع ملفاً صوتياً أو مرئياً للصول على نسخة نصية
                 </CardDescription>
               </CardHeader>
               <CardContent>

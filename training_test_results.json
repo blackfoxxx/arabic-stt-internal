@@ -1,0 +1,23 @@
+{
+  "api_tests": {
+    "availability": true,
+    "statistics": true,
+    "available_models": true,
+    "training_status": true
+  },
+  "data_collection_tests": {
+    "transcription_feedback": {
+      "success_count": 3,
+      "total_samples": 3,
+      "success_rate": 1.0
+    },
+    "dialect_samples": {
+      "success_count": 3,
+      "total_samples": 3,
+      "success_rate": 1.0
+    },
+    "validation": true
+  },
+  "training_tests": {},
+  "overall_status": "passed"
+}

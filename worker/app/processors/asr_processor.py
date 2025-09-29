@@ -9,6 +9,8 @@ from dataclasses import dataclass
 import torch
 import structlog
 from faster_whisper import WhisperModel
+from .dialect_detector import detect_arabic_dialect
+from .acoustic_model_optimizer import optimize_for_iraqi_dialect
 
 logger = structlog.get_logger(__name__)
 
@@ -113,7 +115,7 @@ class ASRProcessor:
         **kwargs
     ) -> Optional[TranscriptionResult]:
         """
-        Transcribe Arabic audio file
+        Transcribe Arabic audio file with enhanced dialect support
         
         Args:
             audio_path: Path to audio file
@@ -150,10 +152,58 @@ class ASRProcessor:
                 **kwargs  # User options override defaults
             }
             
-            # Optimize for Arabic dialects
+            # Auto-detect dialect if not specified or if using generic 'ar'
+            if language == "ar" or not language.startswith("ar-"):
+                logger.info("Performing automatic dialect detection")
+                # For initial detection, we'll use a small sample transcription
+                quick_segments, _ = self.model.transcribe(
+                    audio_path, 
+                    language="ar",
+                    word_timestamps=False,
+                    condition_on_previous_text=False,
+                    beam_size=1,  # Fast detection
+                    temperature=0.0
+                )
+                
+                # Extract first few segments for dialect detection
+                sample_text = ""
+                segment_count = 0
+                for segment in quick_segments:
+                    sample_text += segment.text + " "
+                    segment_count += 1
+                    if segment_count >= 5:  # Use first 5 segments
+                        break
+                
+                if sample_text.strip():
+                    dialect_result = detect_arabic_dialect(sample_text)
+                    detected_language = dialect_result.detected_dialect
+                    logger.info("Dialect detection completed", 
+                              detected=detected_language,
+                              confidence=dialect_result.confidence,
+                              features=dialect_result.dialect_features)
+                    
+                    # Use detected dialect if confidence is high enough
+                    if dialect_result.confidence >= 0.4:
+                        language = detected_language
+                        logger.info("Using detected dialect for optimization", dialect=language)
+                    else:
+                        logger.info("Low confidence detection, using MSA", confidence=dialect_result.confidence)
+                        language = "ar"
+            
+            # Optimize for detected/specified dialect
             if language.startswith("ar-"):
                 dialect = language.split("-")[1]
                 transcribe_options = self._optimize_for_dialect(transcribe_options, dialect)
+                
+                # Apply acoustic model optimizations for Iraqi dialect
+                if dialect == "IQ":
+                    audio_context = {
+                        "dialect_hints": ["IQ", "iraqi"],
+                        "content_type": kwargs.get("content_type", "conversation"),
+                        "quality_score": kwargs.get("quality_score", 70),
+                        "snr": kwargs.get("snr", 12)
+                    }
+                    transcribe_options = optimize_for_iraqi_dialect(transcribe_options, audio_context)
             
             logger.info("Transcription configuration", config=transcribe_options)
             
@@ -209,7 +259,7 @@ class ASRProcessor:
             
             result = TranscriptionResult(
                 segments=processed_segments,
-                language=info.language,
+                language=language,  # Return the detected/optimized language
                 confidence=overall_confidence,
                 processing_time=processing_time,
                 model_used=self.model_name,
@@ -220,7 +270,7 @@ class ASRProcessor:
                        segments_count=len(processed_segments),
                        confidence=overall_confidence,
                        processing_time=processing_time,
-                       language_detected=info.language)
+                       language_detected=language)
             
             return result
             
@@ -236,16 +286,32 @@ class ASRProcessor:
         
         if dialect.upper() == "IQ":  # Iraqi Arabic
             optimized_config.update({
-                "initial_prompt": "الكلام باللهجة العراقية",
+                "initial_prompt": "الكلام باللهجة العراقية والعربية، شلونكم شكو ماكو اليوم",
                 "temperature": 0.1,  # Slightly higher for dialect variations
                 "compression_ratio_threshold": 2.2,
-                "log_prob_threshold": -1.2
+                "log_prob_threshold": -1.2,
+                "beam_size": 6,  # Enhanced beam size for Iraqi dialect
+                "best_of": 3,    # Multiple candidates for better accuracy
+                "condition_on_previous_text": True  # Better context understanding
             })
             
-            # Add Iraqi-specific vocabulary
-            iraqi_terms = ["شلون", "شكو", "ماكو", "اكو", "وين", "شنو"]
+            # Enhanced Iraqi-specific vocabulary with phonetic variations
+            iraqi_terms = [
+                # Common Iraqi expressions
+                "شلون", "شلونك", "شلونكم", "شكو", "شكو ماكو", "اكو", "ماكو", 
+                "وين", "شنو", "هسه", "هاي", "هذا", "هذي", "جان", "كان",
+                "يمعود", "زين", "مو", "لا", "ايه", "هيه", "خوش", "حلو",
+                # Iraqi phonetic variations (distinctive phonemes)
+                "گاع", "گال", "گلت", "گلنا", "گلتوا",  # گ (g sound)
+                "چان", "چنت", "چنا", "چنتوا",          # چ (ch sound)  
+                "پيش", "پس", "پاي",                    # پ (p sound)
+                "ڤيديو", "ڤيس", "ڤاكس",               # ڤ (v sound)
+                "ۆلد", "ۆن", "ۆف",                     # ۆ (o sound)
+                "ڵيش", "ڵه", "ڵا",                     # ڵ (ll sound)
+                "ێمه", "ێش", "ێن"                     # ێ (e sound)
+            ]
             existing_hotwords = config.get("hotwords", "").split()
-            optimized_config["hotwords"] = " ".join(existing_hotwords + iraqi_terms)
+            optimized_config["hotwords"] = " ".join(existing_hotwords + iraqi_terms[:40])  # Limit to prevent overflow
             
         elif dialect.upper() == "EG":  # Egyptian Arabic
             optimized_config.update({

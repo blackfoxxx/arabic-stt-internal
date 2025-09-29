@@ -21,9 +21,9 @@ router = APIRouter()
 
 # Request/Response schemas
 class TranscribeJobRequest(BaseModel):
-    media_id: str = Field(..., regex=r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
-    language: str = Field(default="ar", regex=r'^[a-z]{2}(-[A-Z]{2})?$')
-    model: str = Field(default="large-v3", regex=r'^(large-v3|medium|small)$')
+    media_id: str = Field(..., pattern=r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+    language: str = Field(default="ar", pattern=r'^[a-z]{2}(-[A-Z]{2})?$')
+    model: str = Field(default="large-v3", pattern=r'^(large-v3|medium|small)$')
     diarization: bool = Field(default=True)
     denoise: bool = Field(default=True)
     custom_vocabulary: Optional[List[str]] = Field(default=None, max_items=100)

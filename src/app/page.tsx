@@ -28,6 +28,9 @@ export default function HomePage() {
             
             <div className="flex items-center space-x-4 space-x-reverse">
               <Button variant="ghost" asChild>
+                <Link href="/multimodal-results">نتائج التحليل المتقدم</Link>
+              </Button>
+              <Button variant="ghost" asChild>
                 <Link href="/auth/login">تسجيل الدخول</Link>
               </Button>
               <Button asChild>

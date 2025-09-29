@@ -94,16 +94,16 @@ class MetadataModel(BaseModel):
     
     __abstract__ = True
     
-    metadata = Column(JSON, nullable=True, default=dict)
+    extra_metadata = Column(JSON, nullable=True, default=dict)
     
     def set_metadata(self, key: str, value: Any):
         """Set metadata field"""
-        if not self.metadata:
-            self.metadata = {}
-        self.metadata[key] = value
+        if not self.extra_metadata:
+            self.extra_metadata = {}
+        self.extra_metadata[key] = value
     
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get metadata field"""
-        if not self.metadata:
+        if not self.extra_metadata:
             return default
-        return self.metadata.get(key, default)
+        return self.extra_metadata.get(key, default)

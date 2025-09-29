@@ -51,7 +51,7 @@ class MediaFile(SoftDeleteModel, AuditableModel):
     status = Column(SQLEnum(MediaStatus), default=MediaStatus.UPLOADING, nullable=False, index=True)
     
     # Additional metadata
-    metadata = Column(JSON, default=dict)
+    file_metadata = Column(JSON, default=dict)
     
     # Relationships
     organization = relationship("Organization", back_populates="media_files")
@@ -104,9 +104,9 @@ class MediaFile(SoftDeleteModel, AuditableModel):
         """Update media file status"""
         self.status = status
         if metadata:
-            if not self.metadata:
-                self.metadata = {}
-            self.metadata.update(metadata)
+            if not self.file_metadata:
+                self.file_metadata = {}
+            self.file_metadata.update(metadata)
     
     def set_audio_metadata(self, duration: float, sample_rate: int, channels: int, bitrate: int = None):
         """Set audio metadata"""
