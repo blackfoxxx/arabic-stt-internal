@@ -233,7 +233,7 @@ class TextEnhancementService:
     def __init__(self, llm_service: OllamaLLMService = None):
         self.llm_service = llm_service or OllamaLLMService()
     
-    def correct_grammar(self, text: str, language: str = "arabic") -> LLMResponse:
+    def correct_grammar(self, text: str, language: str = "arabic", model_name: str = None) -> LLMResponse:
         """Correct grammar and improve text quality with enhanced Iraqi Arabic support"""
         
         if language.lower() == "arabic":
@@ -269,9 +269,9 @@ Text: {text}
 
 Corrected text:"""
         
-        return self.llm_service.generate_text_sync(prompt, system_prompt)
+        return self.llm_service.generate_text_sync(prompt, system_prompt, model_override=model_name)
     
-    def summarize_text(self, text: str, language: str = "ar", max_length: int = 200) -> LLMResponse:
+    def summarize_text(self, text: str, language: str = "ar", max_length: int = 200, model_name: str = None) -> LLMResponse:
         """Summarize text with enhanced Arabic dialect support"""
         
         if language.startswith("ar"):
@@ -307,9 +307,9 @@ Text: {text}
 
 Summary:"""
         
-        return self.llm_service.generate_text_sync(prompt, system_prompt)
+        return self.llm_service.generate_text_sync(prompt, system_prompt, model_override=model_name)
     
-    def translate_text(self, text: str, source_lang: str = "arabic", target_lang: str = "english") -> LLMResponse:
+    def translate_text(self, text: str, source_lang: str = "arabic", target_lang: str = "english", model_name: str = None) -> LLMResponse:
         """Translate text between languages"""
         if source_lang.lower() == "arabic" and target_lang.lower() == "english":
             system_prompt = "أنت مترجم محترف من العربية إلى الإنجليزية. قم بترجمة النص بدقة مع الحفاظ على المعنى."
@@ -321,9 +321,9 @@ Summary:"""
             system_prompt = f"You are a professional translator. Translate the text from {source_lang} to {target_lang}."
             prompt = f"Translate the following text from {source_lang} to {target_lang}:\n\n{text}"
         
-        return self.llm_service.generate_text_sync(prompt, system_prompt)
+        return self.llm_service.generate_text_sync(prompt, system_prompt, model_override=model_name)
     
-    def extract_keywords(self, text: str, language: str = "arabic", max_keywords: int = 10) -> LLMResponse:
+    def extract_keywords(self, text: str, language: str = "arabic", max_keywords: int = 10, model_name: str = None) -> LLMResponse:
         """Extract keywords from text"""
         if language.lower() == "arabic":
             system_prompt = f"أنت مساعد ذكي متخصص في استخراج الكلمات المفتاحية من النصوص العربية. استخرج أهم {max_keywords} كلمات مفتاحية."
@@ -332,7 +332,7 @@ Summary:"""
             system_prompt = f"You are an AI assistant specialized in keyword extraction. Extract the top {max_keywords} keywords from the text."
             prompt = f"Extract keywords from the following text:\n\n{text}"
         
-        return self.llm_service.generate_text_sync(prompt, system_prompt)
+        return self.llm_service.generate_text_sync(prompt, system_prompt, model_override=model_name)
 
 # Global service instances
 llm_service = OllamaLLMService()

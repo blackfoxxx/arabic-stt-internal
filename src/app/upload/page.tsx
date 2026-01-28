@@ -52,6 +52,7 @@ interface ProcessingOptions {
   enhancement_level: string;
   custom_vocabulary: string[];
   llm_enhancement: boolean;
+  llm_model: string;
   llm_enhancements: string[];
 }
 
@@ -73,6 +74,7 @@ export default function UploadPage() {
     enhancement_level: 'medium',
     custom_vocabulary: [],
     llm_enhancement: true,
+    llm_model: 'aya:8b',
     llm_enhancements: ['grammar_correction', 'overall_summary', 'keywords']
   });
 
@@ -157,11 +159,26 @@ export default function UploadPage() {
     });
 
     // Basic file analysis for production
+    const duration = Math.floor(file.size / (1024 * 16));
+    const size = file.size;
     const analysis = {
-      duration: Math.floor(file.size / (1024 * 16)), // Rough estimate based on file size
+      duration, // Rough estimate based on file size
       quality_score: 85, // Default quality score
-      recommended_model: 'whisper-large-v3' // Default model
+      recommended_model: 'large-v3', // Default model
+      estimated_time: 0
     };
+
+    // 2. Recommend model based on duration and file size
+    if (duration > 300 || size > 50 * 1024 * 1024) { // > 5 min or > 50MB
+      analysis.recommended_model = 'large-v3';
+      analysis.estimated_time = Math.ceil(duration / 4); // ~4x realtime
+    } else if (duration > 60) {
+      analysis.recommended_model = 'medium';
+      analysis.estimated_time = Math.ceil(duration / 6); // ~6x realtime
+    } else {
+      analysis.recommended_model = 'small';
+      analysis.estimated_time = Math.ceil(duration / 10); // ~10x realtime
+    }
     console.log('🔍 File Analysis:', analysis);
 
     // Auto-recommend model based on file
@@ -569,7 +586,7 @@ export default function UploadPage() {
                         const analysis = {
                           duration_estimate: Math.floor(uploadState.file.size / (1024 * 16)),
                           quality_score: 0.85,
-                          recommended_model: 'whisper-large-v3',
+                          recommended_model: 'large-v3',
                           processing_estimate: estimateProcessingTime(uploadState.file.size)
                         };
                         return (
@@ -810,6 +827,26 @@ export default function UploadPage() {
                   
                   {processingOptions.llm_enhancement && (
                     <div className="space-y-3 ml-6">
+                      <div>
+                        <Label className="text-sm font-medium">نموذج LLM المستخدم</Label>
+                        <Select 
+                          value={processingOptions.llm_model} 
+                          onValueChange={(value) => setProcessingOptions(prev => ({ ...prev, llm_model: value }))}
+                        >
+                          <SelectTrigger className="mt-2 w-full md:w-1/2">
+                            <SelectValue placeholder="اختر نموذج LLM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="aya:8b">Aya 8B (يوصى به للعربية/اللهجات)</SelectItem>
+                            <SelectItem value="llama3.1:8b">Llama 3.1 8B (عام)</SelectItem>
+                            <SelectItem value="mistral:7b">Mistral 7B (سريع)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          يحدد النموذج المستخدم لتوليد الملخصات وتصحيح النص
+                        </p>
+                      </div>
+
                       <div className="text-sm text-gray-600 mb-2">
                         اختر أنواع التحسينات المطلوبة:
                       </div>

@@ -107,12 +107,16 @@ export async function POST(request: NextRequest) {
       backendFormData.append('file', file);
       backendFormData.append('language', options.language);
       backendFormData.append('model', options.model);
+      if (options.llm_model) {
+        backendFormData.append('llm_model', options.llm_model);
+      }
 
       console.log('📤 Sending file to backend:', {
         filename: file.name,
         size: file.size,
         model: options.model,
-        language: options.language
+        language: options.language,
+        llm_model: options.llm_model
       });
 
       // Send to GPU backend server with timeout configuration
@@ -202,6 +206,28 @@ export async function POST(request: NextRequest) {
     if (!transcript.id) {
       transcript.id = `transcript_${sharedTimestamp}`;
       console.log('✅ Generated transcript ID:', transcript.id);
+    }
+    
+    // Rename the uploaded file to match the transcript ID for easier retrieval
+    try {
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        const originalFilePath = path.join(uploadsDir, file.name);
+        
+        if (fs.existsSync(originalFilePath)) {
+            const ext = path.extname(file.name);
+            const newFilename = `${transcript.id}${ext}`;
+            const newFilePath = path.join(uploadsDir, newFilename);
+            
+            // Only rename if target doesn't exist or it's different
+            if (originalFilePath !== newFilePath) {
+                fs.renameSync(originalFilePath, newFilePath);
+                publicAudioUrl = `/uploads/${newFilename}`;
+                console.log(`✅ Renamed audio file to: ${newFilePath}`);
+                console.log(`🔗 New public audio URL: ${publicAudioUrl}`);
+            }
+        }
+    } catch (renameError) {
+        console.error('❌ Failed to rename audio file:', renameError);
     }
     
     // Generate Arabic text analysis data (simulating local analysis results)

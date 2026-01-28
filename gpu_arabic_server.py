@@ -1,5 +1,6 @@
 import os, tempfile, time, logging, json
-from typing import Dict, Any
+import asyncio
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,12 +8,21 @@ import uvicorn
 from audio_enhancer import AudioEnhancer
 from enhanced_vad import EnhancedVAD
 
+# Import LLM Service
+try:
+    from llm_service import OllamaLLMService, TextEnhancementService
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+    print("⚠️ LLM service not available")
+
+# Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("server_debug.log", encoding='utf-8'),
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        logging.FileHandler('gpu_server.log', encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -35,6 +45,18 @@ class GPUArabicProcessor:
         self.models = {}
         self.audio_enhancer = AudioEnhancer()  # Initialize audio enhancer
         self.enhanced_vad = EnhancedVAD()      # Initialize enhanced VAD
+
+        # Initialize LLM Service
+        if LLM_AVAILABLE:
+            try:
+                self.llm_service = OllamaLLMService()
+                self.text_enhancer = TextEnhancementService(self.llm_service)
+                logger.info("✅ LLM Service initialized")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize LLM Service: {e}")
+                self.text_enhancer = None
+        else:
+            self.text_enhancer = None
 
     def check_gpu_capabilities(self):
         try:
@@ -65,6 +87,10 @@ class GPUArabicProcessor:
             logger.warning(f"❌ Error checking faster-whisper: {e}")
 
     def load_model(self, model_name: str):
+        # Strip 'whisper-' prefix if present
+        if model_name.startswith('whisper-'):
+            model_name = model_name.replace('whisper-', '')
+            
         if model_name not in self.models:
             from faster_whisper import WhisperModel
             device = "cuda" if self.gpu_available else "cpu"
@@ -304,6 +330,39 @@ class GPUArabicProcessor:
             
             logger.info(f"✅ Processed {len(processed_segments)} segments")
             
+            # Step 5: LLM Enhancement (if available and requested)
+            llm_results = {}
+            llm_model = options.get('llm_model')
+            
+            if self.text_enhancer and len(processed_segments) > 0:
+                logger.info(f"🤖 Starting LLM enhancement with model: {llm_model or 'default'}")
+                full_text = " ".join([seg['text'] for seg in processed_segments])
+                
+                # Run enhancements in parallel (conceptually, though sync calls here)
+                try:
+                    # 1. Summary
+                    logger.info("📝 Generating summary...")
+                    summary_resp = self.text_enhancer.summarize_text(full_text, language=language, model_name=llm_model)
+                    if summary_resp.success:
+                        llm_results['summary'] = summary_resp.content
+                        
+                    # 2. Keywords
+                    logger.info("🔑 Extracting keywords...")
+                    keywords_resp = self.text_enhancer.extract_keywords(full_text, language=language, model_name=llm_model)
+                    if keywords_resp.success:
+                        llm_results['keywords'] = keywords_resp.content
+                        
+                    # 3. Grammar Correction (only if requested explicitly or implied? Let's do it if llm_model is set)
+                    if llm_model:
+                        logger.info("✨ Correcting grammar...")
+                        grammar_resp = self.text_enhancer.correct_grammar(full_text, language=language, model_name=llm_model)
+                        if grammar_resp.success:
+                            llm_results['corrected_text'] = grammar_resp.content
+                            
+                except Exception as e:
+                    logger.error(f"❌ LLM enhancement failed: {e}")
+                    llm_results['error'] = str(e)
+            
             # Cleanup temporary enhanced audio file
             if enhanced_audio_path and enhanced_audio_path != file_path:
                 try:
@@ -322,7 +381,8 @@ class GPUArabicProcessor:
                 'audio_quality': {
                     'original': original_quality,
                     'enhanced': enhanced_quality if enhanced_audio_path else None
-                }
+                },
+                'llm_analysis': llm_results
             }
         except Exception as e:
             import traceback
@@ -378,7 +438,8 @@ async def health():
 async def upload_process(
     file: UploadFile = File(...),
     language: str = Form("ar"),
-    model: str = Form("large-v3")  # Default to large-v3 for your GPU
+    model: str = Form("large-v3"),
+    llm_model: Optional[str] = Form(None)
 ):
     try:
         content = await file.read()
@@ -397,7 +458,8 @@ async def upload_process(
             
         result = processor.process_audio_file(temp_file, {
             'language': language,
-            'model': model
+            'model': model,
+            'llm_model': llm_model
         })
         os.remove(temp_file)
         transcript_id = f"transcript_{int(time.time())}"
@@ -406,7 +468,9 @@ async def upload_process(
             'segments': result['segments'],
             'gpu_processed': processor.gpu_available,
             'model_used': result.get('model_used', model),
-            'device': result.get('device', 'unknown')
+            'device': result.get('device', 'unknown'),
+            'language': result.get('language'),
+            'llm_analysis': result.get('llm_analysis')
         }
         return {
             "success": True,
@@ -415,7 +479,7 @@ async def upload_process(
             "model_used": result.get('model_used'),
             "segments_count": len(result['segments']),
             "processing_device": result.get('device'),
-            "detected_language": result.get('language_detected')
+            "detected_language": result.get('language')
         }
     except Exception as e:
         raise HTTPException(500, str(e))
