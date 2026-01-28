@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 class LLMConfig:
     """Configuration for LLM service - Optimized for RTX 5090"""
     base_url: str = "http://localhost:11434"
-    model: str = "llama3.1:70b-instruct-q4_K_M"  # Upgraded to 70B for better Arabic understanding
+    model: str = "aya:8b"  # Updated to Aya 8B as requested
     fallback_model: str = "llama3.1:8b"  # Keep 8B as fallback for high-volume processing
-    dialect_model: str = "aya:35b-23-q4_K_M"  # Specialized for Arabic dialects
+    dialect_model: str = "aya:8b"  # Aya is excellent for dialects
     timeout: int = 60  # Increased timeout for larger model
     max_retries: int = 3
     temperature: float = 0.1  # Lower temperature for more consistent results

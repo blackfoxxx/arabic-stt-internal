@@ -309,7 +309,7 @@ class InstallationVerifier:
                             }
                             
                             # Check for recommended models
-                            recommended_models = ['llama3.1:8b', 'mistral:7b', 'qwen2.5:7b', 'phi3:mini']
+                            recommended_models = ['aya:8b', 'llama3.1:8b', 'mistral:7b', 'qwen2.5:7b', 'phi3:mini']
                             available_recommended = [model for model in recommended_models 
                                                    if any(model in available for available in ollama_models)]
                             

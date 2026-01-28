@@ -59,7 +59,7 @@ class NarrativeTruthResult:
 class NarrativeTruthAnalyzer:
     """Advanced narrative truth and coherence analyzer"""
     
-    def __init__(self, model_name: str = "aya:35b-23-q4_K_M"):
+    def __init__(self, model_name: str = "aya:8b"):
         self.model_name = model_name
         
         # Arabic truth/deception linguistic patterns

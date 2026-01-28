@@ -44,6 +44,11 @@ class ModelIntegrityChecker:
                 }
             },
             'ollama_models': {
+                'aya:8b': {
+                    'description': 'Aya 8B model for multilingual/dialect text processing',
+                    'size_gb': 4.8,
+                    'recommended': True
+                },
                 'llama3.1:8b': {
                     'description': 'Llama 3.1 8B model for advanced text processing',
                     'size_gb': 4.7,

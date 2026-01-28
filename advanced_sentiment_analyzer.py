@@ -83,9 +83,9 @@ class AdvancedSentimentResult:
 class AdvancedArabicSentimentAnalyzer:
     """Advanced sentiment analyzer with deep analysis capabilities"""
     
-    def __init__(self, primary_model: str = "aya:35b-23-q4_K_M"):
+    def __init__(self, primary_model: str = "aya:8b"):
         self.primary_model = primary_model
-        self.fallback_models = ["llama3.1:70b-instruct-q4_K_M", "llama3.1:8b"]
+        self.fallback_models = ["llama3.1:8b"]
         
         # Arabic linguistic patterns
         self.arabic_emotion_keywords = {
