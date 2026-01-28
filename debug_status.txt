@@ -1,0 +1,3 @@
+Processing C:\Users\pc\AppData\Local\Temp\tmp4nbz2qb2.mp3
+Has Whisper: True
+GPU Available: True

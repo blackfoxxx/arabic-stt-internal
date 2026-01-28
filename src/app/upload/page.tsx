@@ -477,15 +477,15 @@ export default function UploadPage() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">تحسينات خاصة بالعربية</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">مميزات النظام</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-blue-500">🎯</span>
-                      <span>تحسين خاص للهجات العربية</span>
+                      <span>دعم اللغة العربية والإنجليزية</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-blue-500">📝</span>
-                      <span>معالجة النص العربي وتصحيح الأخطاء</span>
+                      <span>معالجة النص وتصحيح الأخطاء</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-blue-500">🔤</span>
@@ -684,6 +684,7 @@ export default function UploadPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ar">العربية الفصحى</SelectItem>
+                      <SelectItem value="en">English (الإنجليزية)</SelectItem>
                       <SelectItem value="ar-IQ">العربية العراقية</SelectItem>
                       <SelectItem value="ar-EG">العربية المصرية</SelectItem>
                       <SelectItem value="ar-SA">العربية السعودية</SelectItem>

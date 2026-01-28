@@ -7,7 +7,14 @@ import uvicorn
 from audio_enhancer import AudioEnhancer
 from enhanced_vad import EnhancedVAD
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("server_debug.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arabic STT API - GPU Accelerated", version="1.0.0")
@@ -39,16 +46,23 @@ class GPUArabicProcessor:
                 logger.info(f"✅ GPU Available: {self.gpu_name} ({self.gpu_memory}GB^)")
             else:
                 logger.warning("❌ GPU not available, using CPU")
-        except ImportError:
+        except ImportError as e:
+            logger.error(f"❌ Error importing torch: {e}")
+            self.gpu_available = False
+        except Exception as e:
+            logger.error(f"❌ Error checking GPU: {e}")
             self.gpu_available = False
 
         try:
             from faster_whisper import WhisperModel
             self.has_whisper = True
             logger.info("✅ faster-whisper available")
-        except ImportError:
+        except ImportError as e:
             self.has_whisper = False
-            logger.warning("❌ faster-whisper not available")
+            logger.warning(f"❌ faster-whisper not available: {e}")
+        except Exception as e:
+            self.has_whisper = False
+            logger.warning(f"❌ Error checking faster-whisper: {e}")
 
     def load_model(self, model_name: str):
         if model_name not in self.models:
@@ -97,56 +111,61 @@ class GPUArabicProcessor:
         
         return merged
 
-    def _get_optimized_whisper_params(self, audio_quality: Dict, model_name: str) -> Dict:
+    def _get_optimized_whisper_params(self, audio_quality: Dict, model_name: str, language: str = 'ar') -> Dict:
         """Get optimized Whisper parameters based on audio quality and model"""
         try:
             quality_score = audio_quality.get('quality_score', 50)
             snr = audio_quality.get('estimated_snr', 10)
             
-            # Base parameters optimized for Arabic
+            # Base parameters
+            initial_prompt = "الكلام باللغة العربية الفصحى والعامية. تحدث بوضوح."
+            if language and language.startswith('en'):
+                initial_prompt = "The audio contains English speech. Please transcribe clearly."
+                
             params = {
-                'initial_prompt': "الكلام باللغة العربية الفصحى والعامية. تحدث بوضوح.",
+                'initial_prompt': initial_prompt,
                 'condition_on_previous_text': False,  # Reduce repetition
             }
             
             # Adjust parameters based on audio quality
+            # Relaxed thresholds to ensure we capture speech even in noisy audio
             if quality_score >= 80:  # Excellent quality
                 params.update({
-                    'beam_size': 8,  # Higher beam size for better accuracy
-                    'temperature': 0.0,  # Deterministic for high quality
+                    'beam_size': 5,
+                    'temperature': 0.0,
                     'compression_ratio_threshold': 2.4,
                     'log_prob_threshold': -1.0,
                     'no_speech_threshold': 0.6
                 })
             elif quality_score >= 65:  # Good quality
                 params.update({
-                    'beam_size': 6,
-                    'temperature': 0.1,  # Slight randomness
-                    'compression_ratio_threshold': 2.2,
-                    'log_prob_threshold': -0.8,
-                    'no_speech_threshold': 0.5
+                    'beam_size': 5,
+                    'temperature': 0.1,
+                    'compression_ratio_threshold': 2.4,
+                    'log_prob_threshold': -1.0,
+                    'no_speech_threshold': 0.6
                 })
             elif quality_score >= 50:  # Fair quality
                 params.update({
                     'beam_size': 5,
                     'temperature': 0.2,
-                    'compression_ratio_threshold': 2.0,
-                    'log_prob_threshold': -0.6,
-                    'no_speech_threshold': 0.4
+                    'compression_ratio_threshold': 2.4,
+                    'log_prob_threshold': -1.0,  # Was -0.6 (too strict)
+                    'no_speech_threshold': 0.6   # Was 0.4 (too strict)
                 })
             else:  # Poor quality
                 params.update({
-                    'beam_size': 3,  # Lower beam size for speed
-                    'temperature': 0.3,  # More randomness to handle noise
-                    'compression_ratio_threshold': 1.8,
-                    'log_prob_threshold': -0.4,
-                    'no_speech_threshold': 0.3
+                    'beam_size': 5,          # Was 3
+                    'temperature': 0.2,      # Was 0.3
+                    'compression_ratio_threshold': 2.4, # Was 1.8 (too strict)
+                    'log_prob_threshold': -1.0,    # Was -0.4 (extremely strict)
+                    'no_speech_threshold': 0.6     # Was 0.3 (extremely strict)
                 })
             
             # Model-specific adjustments
             if 'large' in model_name:
                 # Large models can handle more complex parameters
-                params['beam_size'] = min(params['beam_size'] + 1, 10)
+                params['beam_size'] = 5
             elif 'small' in model_name or 'base' in model_name:
                 # Smaller models need simpler parameters
                 params['beam_size'] = max(params['beam_size'] - 1, 1)
@@ -154,21 +173,25 @@ class GPUArabicProcessor:
             
             # SNR-based adjustments
             if snr < 5:  # Very noisy
-                params['temperature'] = min(params['temperature'] + 0.2, 0.8)
-                params['no_speech_threshold'] = max(params['no_speech_threshold'] - 0.1, 0.1)
+                # Don't be too strict on noisy audio, or we lose everything
+                params['temperature'] = 0.2
+                params['no_speech_threshold'] = 0.7  # Be more permissive with "silence"
             elif snr > 20:  # Very clean
-                params['temperature'] = max(params['temperature'] - 0.1, 0.0)
-                params['compression_ratio_threshold'] = min(params['compression_ratio_threshold'] + 0.2, 3.0)
+                params['temperature'] = 0.0
             
             return params
             
         except Exception as e:
             logger.warning(f"Whisper parameter optimization failed: {e}")
             # Return safe defaults
+            initial_prompt = "الكلام باللغة العربية الفصحى والعامية"
+            if language and language.startswith('en'):
+                initial_prompt = "The audio contains English speech."
+                
             return {
                 'beam_size': 5,
                 'temperature': 0.0,
-                'initial_prompt': "الكلام باللغة العربية الفصحى والعامية",
+                'initial_prompt': initial_prompt,
                 'condition_on_previous_text': False,
                 'compression_ratio_threshold': 2.4,
                 'log_prob_threshold': -1.0,
@@ -177,68 +200,82 @@ class GPUArabicProcessor:
 
     def process_audio_file(self, file_path: str, options: Dict[str, Any]):
         """Process audio file with GPU acceleration and audio enhancement"""
+        with open("debug_status.txt", "w", encoding="utf-8") as f:
+            f.write(f"Processing {file_path}\n")
+            f.write(f"Has Whisper: {self.has_whisper}\n")
+            f.write(f"GPU Available: {self.gpu_available}\n")
+            
+        print(f"DEBUG: Processing audio file {file_path}")
         try:
             if not self.has_whisper:
+                print("DEBUG: No whisper, fallback")
                 return self.fallback_process(file_path, options)
 
             # Step 1: Assess original audio quality
             logger.info("📊 Assessing original audio quality...")
+            print("DEBUG: Assessing quality...")
             original_quality = self.audio_enhancer.assess_audio_quality(file_path)
             logger.info(f"Original audio quality: {original_quality.get('quality_rating', 'Unknown')} "
                        f"(Score: {original_quality.get('quality_score', 0):.1f}/100)")
             
             # Step 2: Enhance audio for better transcription
+            # DISABLED TEMPORARILY due to potential over-aggressive silence removal causing short transcripts
             enhanced_audio_path = None
-            try:
-                logger.info("🎵 Enhancing audio quality...")
-                enhanced_audio_path = self.audio_enhancer.enhance_audio(file_path)
-                
-                # Assess enhanced audio quality
-                enhanced_quality = self.audio_enhancer.assess_audio_quality(enhanced_audio_path)
-                logger.info(f"Enhanced audio quality: {enhanced_quality.get('quality_rating', 'Unknown')} "
-                           f"(Score: {enhanced_quality.get('quality_score', 0):.1f}/100)")
-                
-                # Use enhanced audio for transcription
-                transcription_file = enhanced_audio_path
-                
-            except Exception as e:
-                logger.warning(f"Audio enhancement failed: {e}, using original audio")
-                transcription_file = file_path
-
+            transcription_file = file_path
+            logger.info("🎵 Using original audio file (Enhancement disabled for stability)")
+            
             model_name = options.get('model', 'large-v3')  # Use large-v3 by default
             language = options.get('language', 'ar')
+            print(f"DEBUG: Loading model {model_name}")
             model = self.load_model(model_name)
             
             # Step 3: Get optimized VAD parameters based on audio analysis
             logger.info("🎤 Analyzing audio for optimal VAD parameters...")
+            print("DEBUG: Getting VAD params...")
             vad_params = self.enhanced_vad.get_vad_parameters_for_whisper(transcription_file)
             logger.info(f"VAD parameters: {vad_params['vad_parameters']}")
             
             logger.info(f"🎵 Processing audio with {model_name} on {'GPU' if self.gpu_available else 'CPU'}")
             
             # Step 4: Optimize Whisper parameters based on audio quality
+            print("DEBUG: Optimizing whisper params...")
             whisper_params = self._get_optimized_whisper_params(
-                enhanced_quality if enhanced_audio_path else original_quality,
-                model_name
+                original_quality,
+                model_name,
+                language
             )
-            logger.info(f"Optimized Whisper parameters: beam_size={whisper_params['beam_size']}, "
-                       f"temperature={whisper_params['temperature']}")
+            logger.info(f"⚙️ Using Whisper Parameters: beam_size={whisper_params['beam_size']}, "
+                       f"no_speech_threshold={whisper_params.get('no_speech_threshold')}, "
+                       f"log_prob_threshold={whisper_params.get('log_prob_threshold')}, "
+                       f"VAD={vad_params['vad_filter']}")
             
             # GPU-optimized transcription with enhanced VAD and optimized parameters
+            # Force VAD filter to False for now to prevent skipping segments in noisy audio
+            # The user reported issues with segments being skipped
+            vad_filter = False 
+            logger.info(f"⚠️ Forced VAD filter to {vad_filter} to ensure full transcription")
+
+            # Only pass vad_parameters if vad_filter is True
+            transcribe_options = {
+                "language": language[:2] if language else None,
+                "task": "transcribe",
+                "word_timestamps": True,
+                "beam_size": whisper_params['beam_size'],
+                "temperature": whisper_params['temperature'],
+                "initial_prompt": whisper_params['initial_prompt'],
+                "vad_filter": vad_filter,
+                "condition_on_previous_text": whisper_params['condition_on_previous_text'],
+                "compression_ratio_threshold": whisper_params['compression_ratio_threshold'],
+                "log_prob_threshold": whisper_params['log_prob_threshold'],
+                "no_speech_threshold": whisper_params['no_speech_threshold']
+            }
+            
+            if vad_filter:
+                transcribe_options["vad_parameters"] = vad_params['vad_parameters']
+
             segments, info = model.transcribe(
                 transcription_file,
-                language=language,
-                task="transcribe",
-                word_timestamps=True,
-                beam_size=whisper_params['beam_size'],
-                temperature=whisper_params['temperature'],
-                initial_prompt=whisper_params['initial_prompt'],
-                vad_filter=vad_params['vad_filter'],
-                vad_parameters=vad_params['vad_parameters'],
-                condition_on_previous_text=whisper_params['condition_on_previous_text'],
-                compression_ratio_threshold=whisper_params['compression_ratio_threshold'],
-                log_prob_threshold=whisper_params['log_prob_threshold'],
-                no_speech_threshold=whisper_params['no_speech_threshold']
+                **transcribe_options
             )
             processed_segments = []
             for i, seg in enumerate(segments):
@@ -248,7 +285,8 @@ class GPUArabicProcessor:
                 
                 # Skip segments with very low confidence or very short duration
                 duration = seg.end - seg.start
-                if confidence < 0.3 or duration < 0.5:
+                # Relaxed thresholds to avoid empty transcripts
+                if confidence < 0.1 or duration < 0.1:
                     logger.debug(f"Skipping low-quality segment: confidence={confidence:.2f}, duration={duration:.2f}s")
                     continue
                 
@@ -287,6 +325,13 @@ class GPUArabicProcessor:
                 }
             }
         except Exception as e:
+            import traceback
+            traceback.print_exc()
+            with open("error_trace.txt", "w", encoding="utf-8") as f:
+                f.write(f"Error processing {file_path}:\n")
+                f.write(str(e) + "\n")
+                f.write(traceback.format_exc())
+            
             logger.error(f"GPU processing failed: {e}")
             return self.fallback_process(file_path, options)
 
@@ -340,9 +385,16 @@ async def upload_process(
         if len(content) == 0:
             raise HTTPException(400, "الملف فارغ")
         logger.info(f"🎵 GPU Processing: {file.filename} ({len(content)} bytes)")
-        temp_file = tempfile.mktemp(suffix='.wav')
+        
+        # Use original extension to help ffmpeg detect format correctly
+        ext = os.path.splitext(file.filename)[1]
+        if not ext:
+            ext = '.wav'
+            
+        temp_file = tempfile.mktemp(suffix=ext)
         with open(temp_file, 'wb') as f:
             f.write(content)
+            
         result = processor.process_audio_file(temp_file, {
             'language': language,
             'model': model
@@ -362,7 +414,8 @@ async def upload_process(
             "gpu_accelerated": processor.gpu_available,
             "model_used": result.get('model_used'),
             "segments_count": len(result['segments']),
-            "processing_device": result.get('device')
+            "processing_device": result.get('device'),
+            "detected_language": result.get('language_detected')
         }
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -378,4 +431,4 @@ if __name__ == "__main__":
     print(f"🖥️  GPU: {getattr(processor, 'gpu_name', 'Not detected')}")
     print(f"💾 RAM: 64GB (Excellent for large models)")
     print(f"🐛 Debug Mode: ENABLED")
-    uvicorn.run("gpu_arabic_server:app", host="0.0.0.0", port=8000, log_level="debug", reload=True)
+    uvicorn.run("gpu_arabic_server:app", host="0.0.0.0", port=8005, log_level="debug", reload=True)

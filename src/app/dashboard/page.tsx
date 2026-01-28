@@ -82,12 +82,11 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     console.log('🚪 Logging out user');
-    // Clear any stored tokens
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+    const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+    if (safeLocalStorage) {
+      safeLocalStorage.removeItem('access_token');
+      safeLocalStorage.removeItem('refresh_token');
     }
-    // Redirect to homepage
     window.location.href = '/';
   };
 
@@ -159,22 +158,26 @@ export default function DashboardPage() {
         } else {
           console.warn('⚠️ Dashboard API returned error');
           setStats({
-            totalJobs: 0,
+            totalFiles: 0,
             totalMinutes: 0,
             completedJobs: 0,
-            recentJobs: 0
+            pendingJobs: 0,
+            monthlyUsage: 0,
+            monthlyLimit: 0
           });
-          setJobs([]);
+          setRecentJobs([]);
         }
       } catch (error) {
         console.error('❌ Failed to load dashboard data:', error);
         setStats({
-          totalJobs: 0,
+          totalFiles: 0,
           totalMinutes: 0,
           completedJobs: 0,
-          recentJobs: 0
+          pendingJobs: 0,
+          monthlyUsage: 0,
+          monthlyLimit: 0
         });
-        setJobs([]);
+        setRecentJobs([]);
       } finally {
         setIsLoading(false);
       }

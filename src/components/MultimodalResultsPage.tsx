@@ -117,7 +117,11 @@ interface EnhancedTruthResults {
   }
 }
 
-const MultimodalResultsPage: React.FC = () => {
+interface MultimodalResultsPageProps {
+  transcriptId?: string;
+}
+
+const MultimodalResultsPage: React.FC<MultimodalResultsPageProps> = ({ transcriptId }) => {
   const [multimodalResults, setMultimodalResults] = useState<MultimodalResults | null>(null)
   const [enhancedTruthResults, setEnhancedTruthResults] = useState<EnhancedTruthResults | null>(null)
   const [loading, setLoading] = useState(true)
@@ -382,7 +386,15 @@ ${enhancedTruthResults.acoustic_truth_result.deception_indicators.map((indicator
       return value.toFixed(decimals)
     }
 
-    const getQualityLevel = (quality: string) => {
+    const getQualityLevel = (quality: string | number) => {
+      if (typeof quality === 'number') {
+         if (quality >= 0.8) return 'ممتاز';
+         if (quality >= 0.6) return 'جيد';
+         if (quality >= 0.4) return 'مقبول';
+         return 'ضعيف';
+      }
+      if (typeof quality !== 'string') return 'غير محدد';
+
       switch(quality?.toLowerCase()) {
         case 'excellent': return 'ممتاز'
         case 'good': return 'جيد'
@@ -392,7 +404,14 @@ ${enhancedTruthResults.acoustic_truth_result.deception_indicators.map((indicator
       }
     }
 
-    const getStressLevel = (stress: string) => {
+    const getStressLevel = (stress: string | number) => {
+      if (typeof stress === 'number') {
+         if (stress >= 0.7) return 'عالي';
+         if (stress >= 0.4) return 'متوسط';
+         return 'منخفض';
+      }
+      if (typeof stress !== 'string') return 'غير محدد';
+
       switch(stress?.toLowerCase()) {
         case 'high': return 'عالي'
         case 'medium': return 'متوسط'
@@ -717,18 +736,31 @@ ${multimodalResults.full_transcription || multimodalResults.text_content}
       setLoading(true)
       setError(null)
 
+      // Determine API endpoints based on transcriptId
+      const multimodalEndpoint = transcriptId 
+        ? `/api/transcripts/${transcriptId}/multimodal`
+        : '/api/results/multimodal/latest'
+      
+      const truthEndpoint = transcriptId
+        ? `/api/transcripts/${transcriptId}/enhanced-truth`
+        : '/api/results/enhanced-truth/latest'
+
       // Load multimodal results
-      const multimodalResponse = await fetch('/api/results/multimodal/latest')
+      const multimodalResponse = await fetch(multimodalEndpoint)
       if (multimodalResponse.ok) {
         const multimodalData = await multimodalResponse.json()
         setMultimodalResults(multimodalData)
+      } else {
+        console.warn(`Failed to load multimodal results from ${multimodalEndpoint}`)
       }
 
       // Load enhanced truth results
-      const truthResponse = await fetch('/api/results/enhanced-truth/latest')
+      const truthResponse = await fetch(truthEndpoint)
       if (truthResponse.ok) {
         const truthData = await truthResponse.json()
         setEnhancedTruthResults(truthData)
+      } else {
+        console.warn(`Failed to load truth results from ${truthEndpoint}`)
       }
 
     } catch (err) {

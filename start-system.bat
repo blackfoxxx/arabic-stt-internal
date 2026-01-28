@@ -22,7 +22,7 @@ set "NC=[0m"
 
 :: Configuration
 set "FRONTEND_PORT=3000"
-set "BACKEND_PORT=8000"
+set "BACKEND_PORT=8005"
 set "TRAINING_PORT=8001"
 set "MAX_STARTUP_WAIT=30"
 
@@ -37,6 +37,8 @@ if not exist "package.json" (
 
 echo %BLUE%Initializing Arabic STT System...%NC%
 echo.
+
+goto :main_start
 
 :: Function to check if port is in use
 :check_port
@@ -73,6 +75,7 @@ if %wait_count% geq %max_wait% (
 timeout /t 1 /nobreak >nul
 goto wait_loop
 
+:main_start
 :: Check system prerequisites
 echo %CYAN%Checking system prerequisites...%NC%
 

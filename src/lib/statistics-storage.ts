@@ -37,6 +37,7 @@ class StatisticsStorage {
   private jobsFile = path.join(this.dataDir, 'jobs.json');
 
   constructor() {
+    console.log('🏗️ StatisticsStorage initialized');
     // Ensure data directory exists
     this.ensureDataDirectory();
   }
@@ -67,7 +68,17 @@ class StatisticsStorage {
         }
       } else {
         // Client-side: use localStorage
-        stored = localStorage.getItem(this.storageKey);
+        try {
+          // TEMPORARILY DISABLED TO DEBUG ERROR
+          // const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+          // if (safeLocalStorage && typeof safeLocalStorage.getItem === 'function') {
+          //   stored = safeLocalStorage.getItem(this.storageKey);
+          // }
+          console.log('Client-side storage temporarily disabled');
+        } catch (e) {
+          // Ignore errors in environments where localStorage is not available
+          console.warn('LocalStorage access failed:', e);
+        }
       }
       
       if (stored) {
@@ -105,7 +116,15 @@ class StatisticsStorage {
         }
       } else {
         // Client-side: use localStorage
-        stored = localStorage.getItem(this.jobsKey);
+        try {
+          // TEMPORARILY DISABLED
+          // const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+          // if (safeLocalStorage && typeof safeLocalStorage.getItem === 'function') {
+          //   stored = safeLocalStorage.getItem(this.jobsKey);
+          // }
+        } catch (e) {
+          // Ignore errors
+        }
       }
       
       if (stored) {
@@ -216,7 +235,14 @@ class StatisticsStorage {
         fs.writeFileSync(this.statisticsFile, data, 'utf8');
       } else {
         // Client-side: use localStorage
-        localStorage.setItem(this.storageKey, data);
+        try {
+          const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+          if (safeLocalStorage && typeof safeLocalStorage.setItem === 'function') {
+            safeLocalStorage.setItem(this.storageKey, data);
+          }
+        } catch (e) {
+          // Ignore
+        }
       }
     } catch (error) {
       console.error('Error saving statistics:', error);
@@ -233,7 +259,14 @@ class StatisticsStorage {
         fs.writeFileSync(this.jobsFile, data, 'utf8');
       } else {
         // Client-side: use localStorage
-        localStorage.setItem(this.jobsKey, data);
+        try {
+          const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+          if (safeLocalStorage && typeof safeLocalStorage.setItem === 'function') {
+            safeLocalStorage.setItem(this.jobsKey, data);
+          }
+        } catch (e) {
+          // Ignore
+        }
       }
     } catch (error) {
       console.error('Error saving jobs:', error);
@@ -252,9 +285,16 @@ class StatisticsStorage {
           fs.unlinkSync(this.jobsFile);
         }
       } else {
-        // Client-side: remove from localStorage
-        localStorage.removeItem(this.storageKey);
-        localStorage.removeItem(this.jobsKey);
+        // Client-side: use localStorage
+        try {
+          const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+          if (safeLocalStorage && typeof safeLocalStorage.removeItem === 'function') {
+            safeLocalStorage.removeItem(this.storageKey);
+            safeLocalStorage.removeItem(this.jobsKey);
+          }
+        } catch (e) {
+          // Ignore errors
+        }
       }
       console.log('📊 All statistics and jobs cleared');
     } catch (error) {

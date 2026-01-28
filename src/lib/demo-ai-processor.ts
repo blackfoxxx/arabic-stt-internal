@@ -67,7 +67,7 @@ interface Job {
   result?: JobResult;
 }
 
-class DemoAIProcessor {
+class AIJobStore {
   public jobs: Map<string, Job> = new Map();
 
   constructor() {
@@ -516,7 +516,7 @@ class DemoAIProcessor {
       this.jobs.set(job.id, job);
     });
 
-    console.log('📊 Demo AI Processor initialized with', demoJobs.length, 'demo jobs');
+    console.log('📊 AI Job Store initialized with', demoJobs.length, 'demo jobs');
   }
 
   getAllJobs(): Job[] {
@@ -660,4 +660,6 @@ class DemoAIProcessor {
 }
 
 // Export a singleton instance
-export const demoAIProcessor = new DemoAIProcessor();
+export const aiJobStore = new AIJobStore();
+// Export alias for backward compatibility
+export const demoAIProcessor = aiJobStore;

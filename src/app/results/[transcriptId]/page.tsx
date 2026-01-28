@@ -132,7 +132,7 @@ export default function ResultsPage() {
             clarity_rating: 0.85,
             audio_quality: data.transcript.quality_metrics?.audio_quality || 0.85,
             enhancement_applied: data.transcript.quality_metrics?.enhancement_applied || 'تحسين الضوضاء',
-            dialect_detected: data.transcript.quality_metrics?.dialect_detected || 'عربية فصحى',
+            dialect_detected: data.transcript.quality_metrics?.dialect_detected || (data.transcript.language === 'en' ? 'English' : 'عربية فصحى'),
             accuracy_estimate: data.transcript.quality_metrics?.accuracy_estimate || 'عالية'
           },
           features_used: data.transcript.ai_features_used || ['faster-whisper', 'pyannote.audio']

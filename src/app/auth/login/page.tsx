@@ -33,9 +33,11 @@ export default function LoginPage() {
 
       if (response.ok) {
         const data = await response.json();
-        // Store token and redirect
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token);
+        const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+        if (safeLocalStorage) {
+          safeLocalStorage.setItem('access_token', data.access_token);
+          safeLocalStorage.setItem('refresh_token', data.refresh_token);
+        }
         window.location.href = '/dashboard';
       } else {
         const errorData = await response.json();

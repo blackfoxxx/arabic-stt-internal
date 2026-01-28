@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { demoAIProcessor } from '@/lib/demo-ai-processor';
+import { aiJobStore } from '@/lib/demo-ai-processor';
 
 export async function GET(
   request: NextRequest,
@@ -12,16 +12,16 @@ export async function GET(
     console.log('📄 Getting transcript:', transcriptId);
 
     // First, try to find existing transcript data
-    const jobs = demoAIProcessor.getAllJobs();
+    const jobs = aiJobStore.getAllJobs();
     let job = jobs.find(j => j.result?.transcript_id === transcriptId && j.status === 'completed' && j.result);
 
     // If no existing job found, create demo data for the new transcript ID
     if (!job) {
       console.log('🔄 No existing data found, creating demo data for:', transcriptId);
       try {
-        const demoResult = demoAIProcessor.createDemoTranscriptData(transcriptId);
+        const demoResult = aiJobStore.createDemoTranscriptData(transcriptId);
         // Get the newly created job
-        job = demoAIProcessor.getJobByTranscriptId(transcriptId);
+        job = aiJobStore.getJobByTranscriptId(transcriptId);
         
         if (!job || !job.result) {
           console.log('❌ Failed to create demo data for:', transcriptId);
@@ -42,7 +42,7 @@ export async function GET(
     }
     
     if (job && job.status === 'completed' && job.result) {
-      console.log('✅ Found real job result in demoAIProcessor:', {
+      console.log('✅ Found real job result in AIJobStore:', {
         id: transcriptId,
         segments: job.result.segments?.length || 0,
         speakers: job.result.speakers?.length || 0,

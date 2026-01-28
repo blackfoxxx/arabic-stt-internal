@@ -12,6 +12,17 @@ const notoSansArabic = Noto_Sans_Arabic({
   variable: "--font-arabic"
 });
 
+if (typeof window === 'undefined') {
+  globalThis.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    key: () => null,
+    length: 0,
+  } as Storage;
+}
+
 export const metadata: Metadata = {
   title: "Arabic STT SaaS - Professional Arabic Speech-to-Text Platform",
   description: "Complete self-hosted Arabic speech-to-text platform with advanced editor, speaker diarization, and multi-format export. Optimized for Arabic dialects including Iraqi.",

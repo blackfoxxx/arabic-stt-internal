@@ -10,7 +10,7 @@ import time
 from typing import Dict, Any
 
 class APITester:
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8005"):
         self.base_url = base_url
         self.session = None
         self.auth_token = None

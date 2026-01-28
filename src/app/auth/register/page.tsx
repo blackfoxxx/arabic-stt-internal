@@ -60,9 +60,11 @@ export default function RegisterPage() {
       if (response.ok) {
         const data = await response.json();
         setSuccess(true);
-        // Store token and redirect
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token);
+        const safeLocalStorage = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+        if (safeLocalStorage) {
+          safeLocalStorage.setItem('access_token', data.access_token);
+          safeLocalStorage.setItem('refresh_token', data.refresh_token);
+        }
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 2000);

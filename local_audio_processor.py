@@ -268,7 +268,7 @@ class LocalAudioProcessor:
                 result["ai_models_used"].append("pyannote.audio")
             else:
                 print("⚠️ pyannote.audio not available or disabled, creating demo speakers")
-                result["speakers"] = self.create_demo_speakers()
+                result["speakers"] = self.create_demo_speakers(options)
             
             # Stage 5: LLM Text Enhancement (if available)
             if self.models_available["llm_service"] and options.get("llm_enhancement", True):
@@ -281,9 +281,13 @@ class LocalAudioProcessor:
             else:
                 print("⚠️ LLM service not available or disabled, using basic post-processing")
                 # Stage 5: Basic Text Post-processing
-                print("📝 Stage 5: Arabic Text Post-processing")
-                result["segments"] = self.post_process_arabic_segments(result["segments"], options)
-                result["processing_stages"].append("text_postprocessing")
+                language = options.get("language", "ar")
+                if language.startswith("ar"):
+                    print("📝 Stage 5: Arabic Text Post-processing")
+                    result["segments"] = self.post_process_arabic_segments(result["segments"], options)
+                    result["processing_stages"].append("text_postprocessing")
+                else:
+                    print(f"📝 Stage 5: Skipping Arabic post-processing for {language}")
             
             # Final results
             result["status"] = "completed"
@@ -448,17 +452,18 @@ class LocalAudioProcessor:
             }
             
             # Add Iraqi Arabic specific vocabulary and hotwords
-            custom_vocab = options.get("custom_vocabulary", [])
-            iraqi_vocab = [
-                "شلونك", "شلونكم", "شكو", "شكو ماكو", "اكو", "ماكو", 
-                "وين", "شنو", "هسه", "هاي", "هذا", "هذي", "جان", "كان",
-                "يمعود", "زين", "مو", "لا", "ايه", "هيه", "خوش", "حلو"
-            ]
-            
-            # Combine custom vocabulary with Iraqi terms
-            all_vocab = custom_vocab + iraqi_vocab
-            if all_vocab:
-                transcribe_options["hotwords"] = " ".join(all_vocab[:50])  # Limit to 50 terms
+            if language.startswith("ar"):
+                custom_vocab = options.get("custom_vocabulary", [])
+                iraqi_vocab = [
+                    "شلونك", "شلونكم", "شكو", "شكو ماكو", "اكو", "ماكو", 
+                    "وين", "شنو", "هسه", "هاي", "هذا", "هذي", "جان", "كان",
+                    "يمعود", "زين", "مو", "لا", "ايه", "هيه", "خوش", "حلو"
+                ]
+                
+                # Combine custom vocabulary with Iraqi terms
+                all_vocab = custom_vocab + iraqi_vocab
+                if all_vocab:
+                    transcribe_options["hotwords"] = " ".join(all_vocab[:50])  # Limit to 50 terms
             
             print(f"🎤 Starting enhanced transcription with {model_name} for {language}")
             print(f"📝 Using dialect prompt: {transcribe_options['initial_prompt']}")
@@ -574,7 +579,8 @@ class LocalAudioProcessor:
             "ar-EG": "الكلام باللهجة المصرية والعربية، إزيك عامل إيه",
             "ar-SA": "الكلام باللهجة السعودية والخليجية، كيف الحال وش أخبارك",
             "ar-MA": "الكلام باللهجة المغربية والعربية، كيف راك لا باس",
-            "ar-LB": "الكلام باللهجة اللبنانية والشامية، كيفك شو أخبارك"
+            "ar-LB": "الكلام باللهجة اللبنانية والشامية، كيفك شو أخبارك",
+            "en": "The audio contains English speech. Please transcribe clearly."
         }
         return dialect_prompts.get(language, dialect_prompts["ar"])
 
@@ -759,14 +765,27 @@ class LocalAudioProcessor:
         num_segments = max(1, int(duration / 10))  # One segment per 10 seconds
         segments = []
         
-        arabic_phrases = [
-            "السلام عليكم ومرحباً بكم",
-            "نحن سعداء بوجودكم معنا اليوم",
-            "سنبدأ الآن في مناقشة الموضوع الرئيسي",
-            "هذا مثال على التفريغ الصوتي العربي",
-            "نتمنى أن تكون النتائج مفيدة ومرضية",
-            "شكراً لكم على حسن الاستماع والمتابعة"
-        ]
+        # Check detected language (simulated)
+        language = audio_info.get("language", "ar")
+        
+        if language == "en":
+            phrases = [
+                "Hello and welcome everyone.",
+                "We are happy to have you with us today.",
+                "We will now start discussing the main topic.",
+                "This is an example of English speech transcription.",
+                "We hope the results are useful and satisfactory.",
+                "Thank you for listening and following along."
+            ]
+        else:
+            phrases = [
+                "السلام عليكم ومرحباً بكم",
+                "نحن سعداء بوجودكم معنا اليوم",
+                "سنبدأ الآن في مناقشة الموضوع الرئيسي",
+                "هذا مثال على التفريغ الصوتي العربي",
+                "نتمنى أن تكون النتائج مفيدة ومرضية",
+                "شكراً لكم على حسن الاستماع والمتابعة"
+            ]
         
         for i in range(num_segments):
             start_time = i * (duration / num_segments)
@@ -775,20 +794,21 @@ class LocalAudioProcessor:
             segments.append({
                 "start": start_time,
                 "end": end_time,
-                "text": arabic_phrases[i % len(arabic_phrases)],
+                "text": phrases[i % len(phrases)],
                 "confidence": 0.85 + (i % 3) * 0.05  # Vary confidence
             })
         
         return segments
     
-    def create_demo_speakers(self) -> List[Dict[str, Any]]:
+    def create_demo_speakers(self, options: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Create demo speaker information"""
+        options = options or {}
         
         return [
             {
                 "id": "SPEAKER_00",
                 "label": "SPEAKER_00",
-                "display_name": "المتحدث الأول",
+                "display_name": "Speaker 1" if options.get("language", "ar") == "en" else "المتحدث الأول",
                 "total_speaking_time": 25.3,
                 "segments_count": 2,
                 "confidence_score": 0.89
@@ -796,20 +816,20 @@ class LocalAudioProcessor:
             {
                 "id": "SPEAKER_01",
                 "label": "SPEAKER_01", 
-                "display_name": "المتحدث الثاني",
+                "display_name": "Speaker 2" if options.get("language", "ar") == "en" else "المتحدث الثاني",
                 "total_speaking_time": 18.7,
                 "segments_count": 1,
                 "confidence_score": 0.82
             }
         ]
     
-    def enhance_text_with_llm(self, text_or_segments, enhancement_types: List[str]) -> Dict[str, Any]:
+    def enhance_text_with_llm(self, text_or_segments, options: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enhance text using LLM services
         
         Args:
             text_or_segments: Either a string of text or list of segment dictionaries
-            enhancement_types: List of enhancement types to apply
+            options: Processing options including language and enhancement types
         
         Returns:
             Dictionary with enhanced results
@@ -819,6 +839,11 @@ class LocalAudioProcessor:
             return {"segments": text_or_segments, "enhancements": []}
         
         try:
+            # Extract options
+            enhancement_types = options.get("llm_enhancements", [])
+            language = options.get("language", "ar")
+            target_lang_name = "english" if language.startswith("en") else "arabic"
+            
             # Handle both text string and segments list
             if isinstance(text_or_segments, str):
                 # Convert string to single segment format
@@ -829,7 +854,7 @@ class LocalAudioProcessor:
             enhanced_segments = []
             enhancements_applied = []
             
-            print(f"🔧 Applying LLM enhancements: {enhancement_types}")
+            print(f"🔧 Applying LLM enhancements: {enhancement_types} for {target_lang_name}")
             
             for i, segment in enumerate(segments):
                 original_text = segment["text"]
@@ -839,21 +864,23 @@ class LocalAudioProcessor:
                 # Apply requested enhancements
                 if "grammar_correction" in enhancement_types:
                     print(f"   📝 Correcting grammar for segment {i+1}")
-                    result = self.text_enhancement.correct_grammar(enhanced_text, "arabic")
+                    result = self.text_enhancement.correct_grammar(enhanced_text, target_lang_name)
                     if result.success:
                         enhanced_text = result.content.strip()
                         segment_enhancements.append("grammar_correction")
                 
                 if "summarization" in enhancement_types and len(original_text) > 100:
                     print(f"   📄 Summarizing long segment {i+1}")
-                    result = self.text_enhancement.summarize_text(enhanced_text, "arabic", 2)
+                    result = self.text_enhancement.summarize_text(enhanced_text, target_lang_name, 2)
                     if result.success:
                         enhanced_text = result.content.strip()
                         segment_enhancements.append("summarization")
                 
                 if "translation" in enhancement_types:
                     print(f"   🌐 Translating segment {i+1}")
-                    result = self.text_enhancement.translate_text(enhanced_text, "arabic", "english")
+                    # If language is English, translate to Arabic, else to English
+                    target_trans = "arabic" if language.startswith("en") else "english"
+                    result = self.text_enhancement.translate_text(enhanced_text, target_lang_name, target_trans)
                     if result.success:
                         segment["translation"] = result.content.strip()
                         segment_enhancements.append("translation")
@@ -877,7 +904,7 @@ class LocalAudioProcessor:
                 print("   📋 Generating overall summary")
                 full_text = " ".join([seg["text"] for seg in enhanced_segments])
                 if len(full_text) > 50:
-                    result = self.text_enhancement.summarize_text(full_text, "arabic", 5)
+                    result = self.text_enhancement.summarize_text(full_text, target_lang_name, 5)
                     if result.success:
                         overall_enhancements["summary"] = result.content.strip()
             
@@ -885,7 +912,7 @@ class LocalAudioProcessor:
                 print("   🔍 Extracting keywords")
                 full_text = " ".join([seg["text"] for seg in enhanced_segments])
                 if len(full_text) > 20:
-                    result = self.text_enhancement.extract_keywords(full_text, "arabic", 10)
+                    result = self.text_enhancement.extract_keywords(full_text, target_lang_name, 10)
                     if result.success:
                         overall_enhancements["keywords"] = result.content.strip()
             
